@@ -1,0 +1,555 @@
+<? 
+include "inc_html/header.html";
+include "inc/drivingLog.inc.php";
+include "inc/paging.inc.php";
+include "inc/user.inc.php";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$LIST_ROWS = 4;
+$LOGS = '';
+$RECEIPTS = '';
+$int = 0;
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Code
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// 운행건수, 주행거리
+$db->que = "SELECT COUNT(seq) AS totalCount, SUM(distance) AS totalDistance FROM drivingLog WHERE startDate >= '". date("Y-01-01"). "'";
+$db->query();
+$totalDrivingLog = $db->getRow();  
+$totalCount = $totalDrivingLog["totalCount"];
+$totalDistance = $totalDrivingLog["totalDistance"];
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// 총지출(정산) 금액
+$db->que = "SELECT sum(totalCost) AS totalCost FROM oilCostPaid WHERE ymd >= '". date("Y-01-01"). "'";
+$db->query();
+$totalCostAmount = $db->getOne();
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// 유류비
+$db->que = "SELECT sum(cost) AS cost FROM oilCostPaid WHERE ymd >= '". date("Y-01-01"). "'";
+$db->query();
+$totalOilCose = $db->getOne();
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// 신규 운행기록
+$db->que = "SELECT * FROM drivingLog ORDER BY startDate DESC, seq DESC  LIMIT ". $LIST_ROWS;
+$db->query();
+$hour24 = 60 * 60 * 24;
+while($row = $db->getRow())
+{
+	$startDate = strToTime($row["startDate"]);
+	$startTime = strToTime($row["startTime"]);
+	$stopTime = strToTime($row["stopTime"]);
+
+	$today = date("Y.m.d");
+	$todayAdd = "";
+
+	if($today == date("Y.m.d", $startDate)) {
+		$todayAdd = "spec";
+	}
+
+	if($row["startAddress"] == "") {
+		$row["startAddress"] = "<span style='color:#e74c3c'>출발지 정보 없음</span>";
+	}
+
+	$drivingTime = $stopTime - $startTime;
+	if($drivingTime > 0)
+	{
+		$hour = $drivingTime / 3600;
+		$minute = ($drivingTime % 3600) / 60;
+		$drivingTimeText = sprintf('%02d', $hour). ":". sprintf('%02d', $minute);
+
+		if($drivingTime >= $hour24)
+		{
+			$drivingTimeText = "<font color=red>". $drivingTimeText. "</font>";
+		}
+	}
+	else
+	{
+		$drivingTimeText = "00:00";
+	}
+
+	$LOGS .= "
+				<tr style='cursor:pointer'>
+					<th onclick='popupDrivingLog(". $row["seq"]. ")'></th>
+					<td onclick='popupDrivingLog(". $row["seq"]. ")' class='$todayAdd'>
+						<div class='txtTbl1'>". $row["name"]. "[". $row["distance"]. "km]</div>
+						<div class='txtTbl2'>". $row["startAddress"]. " → ". $row["stopAddress"]. "</div>
+						<div class='txtTbl2'>". date("Y.m.d", $startDate). "(". $drivingTimeText. ")</div>
+					</td>
+				</tr>";
+}
+
+if(empty($LOGS))
+{
+	$LOGS = '
+				<tr>
+					<th rowspan="1"></td>
+					<td>
+						<div class="txtTbl1">운행기록이 없습니다.</div>
+						<div class="txtTbl2"></div>
+						<div class="txtTbl2"></div>
+					</td>
+				</tr>';
+}
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// 영수증
+$db->que = "SELECT r.createTime , r.employeeNumber , u.name , r.amount , r.drivingLog_seq FROM receipt as r LEFT JOIN user as u ON r.employeeNumber = u.employeeNumber ORDER BY createTime DESC LIMIT ". $LIST_ROWS;
+$db->query();
+while($row = $db->getRow())
+{
+
+	$today = date("Y.m.d");
+	$todayAdd = "";
+
+	if($today == date("Y.m.d", $startDate)) {
+		$todayAdd = "spec";
+	}
+
+	$RECEIPTS .= '
+				<tr style="cursor:pointer">
+					<th onclick="popupReceiptDetail('. $row["drivingLog_seq"]. ')"></th>
+					<td onclick="popupReceiptDetail('. $row["drivingLog_seq"]. ')" class="'. $todayAdd. '">
+						<div class="txtTbl1">'.$row["name"].'('. $row["employeeNumber"]. ')</div>
+						<div class="txtTbl2">'. number_format($row["amount"]). '원</div>
+						<div class="txtTbl2">'. date("Y.m.d H:i", strToTime($row["createTime"])). '</div>
+					</td>
+				</tr>';
+}
+
+if(empty($RECEIPTS))
+{
+	$RECEIPTS = '
+				<tr>
+					<th rowspan="1"></td>
+					<td>
+						<div class="txtTbl1">영수증이 없습니다.</div>
+						<div class="txtTbl2"></div>
+						<div class="txtTbl2"></div>
+					</td>
+				</tr>';
+}
+
+$db->que = "SELECT COUNT(*) FROM user WHERE enabled IN ('N', 'C')";
+$db->query();
+$disableUserCount = $db->getOne();
+
+$db->que = " SELECT count(seq) FROM drivingLog WHERE submitState = 'N' AND deleteState = 'N' ";
+$db->query();
+$disableDrivingLogs = $db->getOne();
+?>
+
+<script>
+$(function(){
+	var sum = 0;
+	var count = 0;
+	$("#table-header th").each(function() {
+		sum += parseInt($(this).attr("width"), 10);
+		count++;
+	});
+
+	$("#table-header th").each(function() {
+		var width = parseInt($(this).attr("width"), 10);
+		var widthRatio = width / sum * 100;
+		$(this).attr("width", widthRatio+"%");
+	});
+
+	$("#emptyRow").attr("colspan", count);   
+});
+
+
+function popupReceiptDetail(seq){
+	popup("win_galley.php?seq=" + seq, 650, 600);
+}
+
+function popupDrivingLog(seq){
+	popup("drivingLogWrite.html?seq=" + seq, 650, 700);
+}
+
+</script>
+
+<div class="row">
+	<div class="col-md-12">
+		<div class="row">
+			<div class="col-md-8 mainChart">
+				<div class="col-md-6 mainChartBlock">
+					<i class="fa fa-car"></i>
+					<div class="mainChartTitle"><?=date("Y")?>년 운행내역 건</div>
+					<div class="mainChartNum"><strong><?=number_format($totalCount)?></strong>건</div>
+				</div>
+				<div class="col-md-6 mainChartBlock">
+					<i class="fa fa-map-marker"></i>
+					<div class="mainChartTitle"><?=date("Y")?>년 총 운행거리</div>
+					<div class="mainChartNum"><strong><?=number_format($totalDistance)?></strong>km</div>
+				</div>
+				<div class="col-md-6 mainChartBlock">
+					<i class="fa fa-won"></i>
+					<div class="mainChartTitle"><?=date("Y")?>년 총 지출 금액</div>
+					<div class="mainChartNum"><strong><?=number_format($totalCostAmount)?></strong>원</div>
+				</div>
+				<div class="col-md-6 mainChartBlock">
+					<i class="fa fa-map"></i>
+					<div class="mainChartTitle"><?=date("Y")?>년 총 유류비</div>
+					<div class="mainChartNum"><strong><?=number_format($totalOilCose)?></strong>원</div>
+				</div>
+			</div>
+			<div class="col-md-4">
+				<div class="card">
+					<div class="cardCont noneConfirm" data-toggle="tooltip" data-placement="left" title="미승인 사용자를 승인하려면 클릭해주세요." onclick="location.href='user.html?findkey=&pageNum=1&enabled=N'">
+						<div class="col-xs-4 col-sm-4 col-md-2"><i class="fa fa-address-book"></i></div>
+						
+						<div class="col-xs-8 col-sm-8 col-md-8 text-right">
+							<div class="noneTitle">미승인 사용자 건수</div>
+							<div class="noneCont"><?=$disableUserCount?>건</div>
+						</div>
+						<div class="col-xs-12 col-sm-12 col-md-2 text-right"><i class="fa fa-angle-right"></i></div>
+					</div>
+					<div class="cardCont noneConfirm" data-toggle="tooltip" data-placement="left" title="미승인 영수증을 승인하려면 클릭해주세요." onclick="location.href='drivingLogs.html?enabled=N'">
+						<div class="col-xs-4 col-sm-4 col-md-2"><i class="fa fa-tags"></i></div>
+						
+						<div class="col-xs-8 col-sm-8 col-md-8 text-right">
+							<div class="noneTitle">미승인 운행내역</div>
+							<div class="noneCont"><?=$disableDrivingLogs?>건</div>
+						</div>
+						<div class="col-xs-12 col-sm-12 col-md-2 text-right"><i class="fa fa-angle-right"></i></div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<script type="text/javascript">
+
+		$(document).ready(function(){
+			getChartData();
+		});
+
+		function getChartData() {
+			$.ajax({
+				url: "ajax/getMainGraphData.php",
+				data: {"param":""},
+				type: "post",
+				dataType : "json",
+				success: function( json ) {
+					drawChart2(json.data);
+					console.log(json.data);
+				},
+				error: function( xhr, status ) { alert("그래프 오류!." + JSON.stringify(xhr)); },
+				complete: function( xhr, status ) { }
+			});
+		}
+		</script>
+		<script>
+		
+		var costOpt;
+		function drawChart2(data) {
+			var costOpt = data[0][1];
+			var costmonths = [];
+			var costamounts = [];
+			var costamounts2 = [];
+			var costtype = [];
+			var cost_Distance = [];
+			$.each(data[0], function (f) {
+				if (f > 1){
+					costtype.push(data[0][f]);
+				}
+			}); 
+			
+			$.each(data, function (e) {
+				if (e > 0){
+					costmonths.push(data[e][0]);
+					costamounts.push(data[e][2] * 100);
+					costamounts2.push(data[e][1] * 100);
+				}
+			});
+			
+			for ( var i = 3; i < data[0].length; i++) 
+			{
+				var costtypedistance = [];
+				for (var j = 1; j < data.length; j++) 
+				{ 
+					costtypedistance.push(data[j][i]);
+				}
+				cost_Distance.push({name : costtype[i-2], data: costtypedistance});
+			}
+			Highcharts.setOptions({
+				lang: {
+					thousandsSep:	',',
+					downloadCSV:	'CSV파일 다운로드',
+					downloadJPEG:	'JPEG이미지 다운로드',
+					downloadPDF:	'PDF파일 다운로드',
+					downloadPNG:	'PNG이미지 다운로드',
+					downloadSVG:	'SVG이미지 다운로드',
+					printChart:		'차트 인쇄'
+				}
+			});
+			//운행거리 차트
+			Highcharts.chart('drivingChart', {
+				chart: {
+					type: 'column'
+				},
+				title: {
+					text: '월별 운행거리 현황'
+				},
+				credits: {
+					enabled: false
+				},
+				yAxis: {
+					min: 0,
+					title: {
+						text: '운행 거리(km)'
+					}
+				},
+				xAxis: {
+					categories: costmonths,
+					title: {
+						text: '월별 운행거리'
+					}
+				},
+				plotOptions: {
+					column: {
+						pointPadding: 0.2,
+						borderWidth: 0
+					}
+				},	
+
+				series: cost_Distance,
+
+				tooltip: {
+					headerFormat: '<span style="font-size:10px">{point.key} 목적별 운행거리</span><table>',
+					pointFormat: '<tr><td style="color:{series.color};padding:0">{series.name}: </td>' +
+						'<td style="padding:0"><b>{point.y} km</b></td></tr>',
+					footerFormat: '</table>',
+					shared: true,
+					useHTML: true
+				},
+
+				responsive: {
+					rules: [{
+						condition: {
+							maxWidth: 500
+						},
+						chartOptions: {
+							legend: {
+								layout: 'horizontal',
+								align: 'center',
+								verticalAlign: 'bottom'
+							}
+						}
+					}]
+				}
+			});
+
+			//유류비 차트
+			Highcharts.chart('costChart', {
+				chart: {
+					type: 'spline'
+				},
+				title: {
+					text: '월별 지출 정산 현황 '
+				},
+				credits: {
+					enabled: false
+				}, 
+				yAxis: {
+					title: {
+						text: costOpt + ' 지급 금액(월)'
+					}
+				},
+				xAxis: {
+					title: {
+						text: '월별 정산액 지급'
+					},
+					categories: costmonths,
+				},
+
+				plotOptions: {
+					series: {
+						label: {
+							connectorAllowed: false
+						}
+					}
+				},
+
+				series: [{
+					name: '유류비',
+					data: costamounts
+				}, {
+					name: '총정산',
+					data: costamounts2
+				}],
+
+				tooltip: {
+					headerFormat: '<span style="font-size:10px">{point.key} {series.name} 지급금액</span><br />',
+					valueSuffix: ' 원'
+				},
+
+				responsive: {
+					rules: [{
+						condition: {
+							maxWidth: 500
+						},
+						chartOptions: {
+							legend: {
+								layout: 'horizontal',
+								align: 'center',
+								verticalAlign: 'bottom'
+							}
+						}
+					}]
+				}
+
+			});
+		}
+		</script>
+		<style>
+		.medals_layout td { padding:5px; font-size:16px; font-weight:600; vertical-align:middle; color:#444;}
+		.medals_layout .titTooltip { font-size:14px; color:#888;}
+		.medals_layout td b { font-size:25px;}
+		</style>
+		<script src="//code.highcharts.com/highcharts.js"></script>
+		<script src="//code.highcharts.com/modules/series-label.js"></script>
+		<script src="//code.highcharts.com/modules/exporting.js"></script>
+		<div class="row">
+			<div class="col-md-6">
+				<div class="card">
+					<div class="cardTitle">
+						<span class="titCard">
+							<i class="fa fa-line-chart mr5 cataxI"></i>운행거리 차트
+						</span>
+					</div>
+					<div class="cardCont">
+						<div id="drivingChart"></div>
+					</div>
+				</div>
+			</div>
+			<div class="col-md-6">
+				<div class="card">
+					<div class="cardTitle">
+						<span class="titCard">
+							<i class="fa fa-line-chart mr5 cataxI"></i>지출 정산 차트
+						</span>
+					</div>
+					<div class="cardCont">
+						<div id="costChart"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="row">
+			<div class="col-md-6">
+				<div class="card matchHeight">
+					<div class="cardTitle"><span class="titCard"><i class="fa fa-car mr5 cataxI"></i>운행 현황<a href="drivingLogs.html" class="btn btn-xs btn-new-ok pull-right">더보기</a></span></span></div>
+					<div class="cardCont">
+						<table class="tblListNone table-hover">
+							<tbody>
+							<?=$LOGS?>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+			<div class="col-md-6">
+				<div class="card matchHeight">
+					<div class="cardTitle"><span class="titCard"><i class="fa fa-tag mr5 cataxI"></i>영수증 현황<a href="drivingLogs.html" class="btn btn-xs btn-new-ok pull-right">더보기</a></span></span></div>
+					<div class="cardCont">
+						<table class="tblListNone table-hover">
+							<tbody>
+							<?=$RECEIPTS?>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+			
+			
+			<div class="col-md-4" style="display:none">
+				<div class="card">
+					<div class="cardTitle"><span class="titCard"><i class="fa fa-pencil mr5 cataxI"></i>수정 내역</span></span></div>
+					<div class="cardSearch">
+						<select class="btn btn-new-cancle" onchange="search()">
+							<option value="0">수정자</option>
+						</select>
+						<a href="javascript:;" class="btn btn-sm btn-new-ok pull-right"><i class="fa fa-calendar mr5"></i>기간검색</a>
+					</div>
+					<div class="cardCont">
+						<table class="tblListNone table-hover">
+							<tbody>
+							<tr>
+								<th></th>
+								<td>
+									<div class="txtTbl1">관리자</div>
+									<div class="txtTbl2">차량 운행 내역 뉴코란도 32허7777 수정</div>
+									<div class="txtTbl2">17.05.18(08:24)</div>
+								</td>
+							</tr>
+							<tr>
+								<th></th>
+								<td>
+									<div class="txtTbl1">뉴코란도 32허7777</div>
+									<div class="txtTbl2">차량 운행 내역 운행기록 삭제</div>
+									<div class="txtTbl2">17.05.18(07:24)</div>
+								</td>
+							</tr>
+							<tr>
+								<th></th>
+								<td>
+									<div class="txtTbl1">관리자</div>
+									<div class="txtTbl2">관리자페이지 접속 비밀번호 변경</div>
+									<div class="txtTbl2">17.05.17(18:24)</div>
+								</td>
+							</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+//높이 맞추기
+var matchH;
+var matchHresize;
+$(".matchHeight").each(function(){
+	var thisHeight = $(this).outerHeight();
+	if (matchH){
+		if(thisHeight > matchH){
+			matchH = thisHeight;
+		}
+	} else {
+		matchH = thisHeight;
+	}
+});
+$(window).load(function(){
+	$(".matchHeight").outerHeight(matchH);
+});
+
+$(window).resize(function(){
+	matchHresize = '';
+	$(".matchHeight").removeAttr("style");
+	$(".matchHeight").each(function(){
+		var thisHeight = $(this).outerHeight();
+		if (matchHresize){
+			if(thisHeight > matchHresize){
+				matchHresize = thisHeight;
+			}		
+		} else {
+			matchHresize = thisHeight;
+		}
+	});
+	$(".matchHeight").outerHeight(matchHresize);
+});
+</script>
+
+<? include "inc_html/footer.html"; ?>

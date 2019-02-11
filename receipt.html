@@ -1,0 +1,464 @@
+<? 
+include "inc_html/header.html";
+include "inc/paging.inc.php";
+include "inc/receipt.inc.php";
+include "inc/department.inc.php";
+
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$companySeq							= $COMPANY_SEQ;
+$pageNum								= $_GET["pageNum"];
+$year										= $_GET["year"];
+$departmentSeq						= $_GET["departmentSeq"];
+$receiptProjectSeq					= $_GET["receiptProjectSeq"];
+$receiptAccountCodeSeq			= $_GET["receiptAccountCodeSeq"];
+$receiptAccountCodeDetailSeq	= $_GET["receiptAccountCodeDetailSeq"];
+$card										= $_GET["card"];
+$findkey									= $_GET["findkey"];
+$state									= $_GET["state"];
+$beginDate								= $_GET["beginDate"];
+$endDate								= $_GET["endDate"];
+
+if(empty($year)) $year = date("Y");
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$pg = new Paging(20, 10);
+
+
+$department = new Department($db, $companySeq);
+$department->loadData();
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Code
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+
+
+if(empty($departmentSeq) == false)						$WHERE .= " AND r.departmentSeq=". $departmentSeq;
+if(empty($receiptProjectSeq) == false)						$WHERE .= " AND r.receiptProjectSeq=". $receiptProjectSeq;
+if(empty($receiptAccountCodeSeq) == false)				$WHERE .= " AND r.receiptAccountCodeSeq=". $receiptAccountCodeSeq;
+if(empty($receiptAccountCodeDetailSeq) == false)		$WHERE .= " AND r.receiptAccountCodeDetailSeq=". $receiptAccountCodeDetailSeq;
+if(empty($card) == false)										$WHERE .= " AND r.card='". $card. "'";
+if(empty($state) == false)										$WHERE .= " AND r.state='". $state. "'";
+if(empty($beginDate) == false)								$WHERE .= " AND r.useDate>='". $beginDate. "'";
+if(empty($endDate) == false)									$WHERE .= " AND r.useDate<='". $endDate. "'";
+if(empty($findkey) == false)									$WHERE .= " AND r.name LIKE '%". $findkey. "%'";
+
+
+$db->que = "SELECT COUNT(*) FROM receiptView AS r WHERE r.companySeq=". $companySeq. $WHERE;
+$db->query();
+$totalCount = $db->getOne();
+$pg->set($totalCount, $pageNum);
+
+
+$db->que = "SELECT r.*  FROM receiptView AS r  WHERE r.companySeq=". $companySeq. $WHERE. " ORDER BY r.useDate DESC, r.createTime DESC LIMIT ". $pg->startRow. ", ". $pg->fetchSize;
+$db->query();
+while($row = $db->getRow())
+{
+	$LIST .= "
+			<tr height='30'>
+				<td align='center'><input type='checkbox' name='check[]' class='list-checkbox' value='". $row["seq"]. "' /></td>
+				<td align='center'>". date("Y.m.d", strToTime($row["useDate"])). "</td>
+				<td align='center'>". $row["departmentName"]. "</td>
+				<td align='center'>". $row["name"]. "</td>
+				<td align='center'>". Receipt::getCardText($row["card"]). "</td>
+				<td align='center'>[". $row["receiptAccountCodeCode"]. "]". $row["receiptAccountCodeName"]. "</td>
+				<td align='center'>". $row["receiptAccountCodeDetailName"]. "</td>
+				<td align='center'>". number_format($row["amount"]). "원</td>";
+
+	if(empty($row["memo"]))
+	{
+		$LIST .= "<td align='center'>없음</td>";
+	}
+	else
+	{
+		$LIST .= "<td align='center' class='f_blue'>있음</td>";
+	}
+	
+
+	if($row["state"] == "N")
+	{
+		$LIST .= "<td align='center'><span class='label label-no'>". Receipt::getStateText($row["state"]). "</span></td>";
+	}
+	else if($row["state"] == "Y")
+	{
+		$LIST .= "<td align='center'><span class='label label-ok'>". Receipt::getStateText($row["state"]). "</span></td>";
+	}
+	else if($row["state"] == "X")
+	{
+		$LIST .= "<td align='center'><span class='label label-wait'>". Receipt::getStateText($row["state"]). "</span></td>";
+	}
+
+	if(empty($row["thumbUrl"]) == false)
+	{
+		$LIST .= "<td align='center'><a href='javascript:popupReceiptImage(". $row["seq"]. ");' class='thumb btn btn-sm btn-new-find' title='미리보기' data='". _DATA_SERVER. $row["thumbUrl"]. "'><i class='fa fa-file-image-o'></i></a></td>";
+	}
+	else
+	{
+		$LIST .= "<td align='center'></td>";
+	}
+
+	$LIST .= "<td align='center'><a href='javascript:popupReceiptDetail(". $row["seq"]. ");' class='btn btn-sm btn-new-find' title='수정하기'>수정</a></td>";
+
+	$LIST .= "</tr>";
+}
+
+
+
+
+// 계정과목, 세목
+//-----------------------------------------------------------------------------------
+$db->que = "SELECT * FROM receiptAccountCode WHERE companySeq=". $companySeq. " AND enabled != 'X' ORDER BY name ASC";
+$db->query();
+while($row = $db->getRow())
+{
+	$AC_OPTIONS .= "<option value='". $row["seq"]. "' ". LIB::isSelected($row["seq"], $receiptAccountCodeSeq). ">[". $row["code"]. "] ". $row["name"]. "</option>";
+}
+
+if(empty($receiptAccountCodeSeq) == false)
+{
+	$db->que = "SELECT * FROM receiptAccountCodeDetail WHERE enabled != 'X' AND receiptAccountCodeSeq=". $receiptAccountCodeSeq. " ORDER BY name ASC";
+	$db->query();
+	while($row = $db->getRow())
+	{
+		$ACD_OPTIONS .= "<option value='". $row["seq"]. "' ". LIB::isSelected($row["seq"], $receiptAccountCodeDetailSeq). ">". $row["name"]. "</option>";
+	}
+}
+
+
+// 프로젝트
+//-----------------------------------------------------------------------------------
+$db->que = "SELECT * FROM receiptProject WHERE companySeq=". $companySeq. " AND enabled='Y' ORDER BY sort ASC";
+$db->query();
+while($row = $db->getRow())
+{
+	$PROJECT_OPTIONS .= "<option value='". $row["seq"]. "' ". LIB::isSelected($row["seq"], $receiptProjectSeq). ">[". $row["code"]. "] ". $row["name"]. "</option>";
+}
+
+
+?>
+
+<script type="text/javascript">
+function listPaging(pageNum)
+{
+	search(pageNum);
+}
+
+function search(pageNum) {
+	if(typeof pageNum === "undefined")
+	{
+		pageNum = 1;
+	}
+
+	var key										= encodeURIComponent($("#findkey").val());
+	var departmentSeq						= $("#departmentSeq").val();
+	var receiptProjectSeq					= $("#receiptProjectSeq").val();
+	var receiptAccountCodeSeq			= $("#receiptAccountCodeSeq").val();
+	var receiptAccountCodeDetailSeq	= $("#receiptAccountCodeDetailSeq").val();
+	var card										= $("#card").val();
+	var state									= $("#state").val();
+	var beginDate								= $("#beginDate").val();
+	var endDate								= $("#endDate").val();
+
+
+	window.location.href = "receipt.html?findkey=" + key + "&departmentSeq=" + departmentSeq + "&receiptProjectSeq=" + receiptProjectSeq + "&receiptAccountCodeSeq=" + receiptAccountCodeSeq + "&receiptAccountCodeDetailSeq=" + receiptAccountCodeDetailSeq + "&card=" + card + "&state=" + state + "&beginDate=" + beginDate + "&endDate=" + endDate + "&pageNum=" + pageNum;
+
+}
+
+function getReceiptAccountCodeDetails(seq) {
+	$.ajax({
+			url: "ajax/getReceiptAccountCodeDetails.php",
+			data: {"receiptAccountCodeSeq":seq},
+			type: "post",
+			dataType : "json",
+			success: function( json ) {
+				$("#receiptAccountCodeDetailSeq").html("");
+				$("#receiptAccountCodeDetailSeq").append("<option value='0'>세목 선택</option>");
+				$.each(json.receiptAccountCodeDetails, function(key) {
+					$("#receiptAccountCodeDetailSeq").append("<option value='" + this.seq + "' data='" + this.type + "'>" + this.name + "</option>");
+				});
+			},
+			error: function( xhr, status ) { alert("처리중 오류가 발생하였습니다. 다시 시도하여 주십시오. "); },
+			complete: function( xhr, status ) { }
+	});
+}
+
+
+$(function() {
+	$("#beginDate, #endDate").datepicker({
+		dateFormat: 'yy-mm-dd',
+		prevText: '이전 달',
+		nextText: '다음 달',
+		monthNames: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+		monthNamesShort: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+		dayNames: ['일','월','화','수','목','금','토'],
+		dayNamesShort: ['일','월','화','수','목','금','토'],
+		dayNamesMin: ['일','월','화','수','목','금','토'],
+		yearSuffix: ' / ',
+		changeMonth : true,
+		changeYear : true
+	});
+});
+
+
+$(document).ready(function(){
+
+	var url = document.location.href;
+    var result = url.replace("http://cds.jeycorp.com/oil/receipt.html","");
+    
+    $("#params").val(result);
+
+	$(".btn_reset").click(function(){
+		$("input[type='text']").val("");
+		$('select').val("");
+	});
+});
+
+
+$(document).ready(function() {          
+	$(document).on("mouseover",".thumb",function(e){ //마우스 오버시
+		$("body").append("<p id='preview'><img src='"+ $(this).attr("data") +"' height='300px' /></p>"); //보여줄 이미지를 선언                       
+		movePreview(e);
+	});
+
+	$(document).on("mousemove",".thumb",function(e){ //마우스 이동시
+		movePreview(e);
+	});
+
+	$(document).on("mouseout",".thumb",function(){ //마우스 아웃시
+		$("#preview").remove();
+	});
+
+	var xOffset = 20;
+	var yOffset = 5;
+	function movePreview(e) {
+		var rightOffset = $(document).width() - e.pageX + xOffset;
+		var topOffset = e.pageY - yOffset;
+
+		$("#preview")
+			.css("right", rightOffset + "px")
+			.css("top",topOffset + "px")
+			.fadeIn("fast");
+	}
+});
+
+
+function popupReceiptImage(seq){
+	popup("receiptImage.html?seq=" + seq, 650, 600);
+}
+
+function popupReceiptDetail(seq){
+	popup("receiptDetail.html?seq=" + seq, 650, 600);
+}
+
+function downLoadExcel() {
+	popup("about:blank/receiptExcelDown", 650, 600);
+	//var gsWin = window.open('about:blank','receiptExcelDown','width=800,height=600');
+	var frm =document.searchForm;
+	frm.action = 'receiptExcelDown.html';
+	frm.target ="receiptExcelDown";
+	frm.method ="get";
+	frm.submit();
+}
+
+function downLoadImage() {
+	popup("about:blank/receiptImageDown", 650, 600);
+	//var gsWin = window.open('about:blank','receiptImageDown','width=800,height=600');
+	var frm =document.searchForm;
+	frm.action = 'receiptImageDown.html';
+	frm.target ="receiptImageDown";
+	frm.method ="get";
+	frm.submit();
+}
+</script>
+<style>
+#preview {
+	z-index: 9999;
+	position:absolute;
+	border:7px solid #3ea3dc;
+	display:none;
+	color:#fff;
+}
+</style>
+
+<div class="row">
+	<div class="col-md-12">
+		<div class="card">
+			<div class="cardTitle"><span class="titCard">영수증 검색</span></div>
+			<div class="cardCont" style="border-bottom:1px solid #dfdfdf;">
+				<form name="searchForm" method="get">
+					<table class="tbl_none">
+						<colgroup>
+							<col width="150"></col>
+							<col width="*"></col>
+							<col width="150"></col>
+							<col width="*"></col>
+						</colgroup>
+						<!-- 검색 데이터 -->
+						<tr>
+							<th>부서</th>
+							<td>
+								<select id="departmentSeq" name="departmentSeq" class="input">
+									<option value="">전체 부서</option>
+									<?=$department->getTreeSelectBoxOptions($departmentSeq)?>
+								</select>
+							</td>
+							<th>이름 검색</th>
+							<td>
+								<input type="text" name="findkey" id="findkey" class="input" style="width:150px" placeholder="성명을 입력 하세요." onkeypress="if(event.keyCode == 13) search()" value="<?=$findkey?>" />
+							</td>
+						</tr>
+						<tr>
+							<th>계정과목</th>
+							<td>
+								<select id="receiptAccountCodeSeq" name="receiptAccountCodeSeq" class="input" onchange="getReceiptAccountCodeDetails(this.value)">
+									<option value="">계정과목 선택</option>
+									<?=$AC_OPTIONS?>
+								</select>
+
+								<select id="receiptAccountCodeDetailSeq" name="receiptAccountCodeDetailSeq" class="input">
+									<option value="">세목 선택</option>
+									<?=$ACD_OPTIONS?>
+								</select>
+							</td>
+							<th>결제수단</th>
+							<td>
+								<select id="card" name="card" class="input">
+									<option value="">전체</option>
+									<option value="Company" <?=LIB::isSelected("Company", $card)?>><?=Receipt::getCardFullText("Company")?></option>
+									<option value="Personal" <?=LIB::isSelected("Personal", $card)?>><?=Receipt::getCardFullText("Personal")?></option>
+								</select>
+							</td>
+						</tr>
+						<tr>
+							<th>처리상태</th>
+							<td>
+								<select id="state" name="state" class="input">
+									<option value="">전체</option>
+									<option value="N" <?=LIB::isSelected("N", $state)?>><?=Receipt::getStateText("N")?></option>
+									<option value="Y" <?=LIB::isSelected("Y", $state)?>><?=Receipt::getStateText("Y")?></option>
+									<option value="X" <?=LIB::isSelected("X", $state)?>><?=Receipt::getStateText("X")?></option>
+								</select>
+							</td>
+							<th>기간검색</th>
+							<td>
+								<input type="text" name="beginDate" id="beginDate" class="input" value="<?=$beginDate?>" style="width:95px" readonly /> ~
+								<input type="text" name="endDate" id="endDate" class="input" value="<?=$endDate?>" style="width:95px" readonly />
+							</td>
+						</tr>
+						<tr>
+							<th>프로젝트</th>
+							<td colspan="3">
+								<select id="receiptProjectSeq" name="receiptProjectSeq" class="input">
+									<option value="">전체 프로젝트</option>
+									<?=$PROJECT_OPTIONS?>
+								</select>
+							</td>
+						</tr>
+						<tr>
+							<td class="center" colspan="4" style="border-left:0;">
+								<span class="mobile_block mobile_mt10">
+									<input type="button" value="검색" onclick="search()" class="btn btn-sm btn-new-find" /> 
+									<input type="button" value="초기화" class="btn btn-sm btn-new-cancle btn_reset" />
+								</span>
+							</td>
+						</tr>
+					</table>
+				</form>
+			</div>
+			<div class="cardCont">
+				<form class="list-box" name="listForm" action="post/receiptListPost.php" method="post">
+					<input type="hidden" name="updateState" id="updateState">
+					<input type="hidden" name="params" id="params">
+					<div class="mb10">
+						<div class="btn-group">
+							<button type="button" data-toggle="dropdown" class="btn dropdown-toggle btn-sm btn-new-find" aria-expanded="false">선택목록 일괄 처리 <span class="caret"></span></button>
+							<ul role="menu" class="dropdown-menu">
+								<li><a href="javascript:" onclick="$('#updateState').val('Y'); listForm.submit();">선택 목록 일괄 승인</a></li>
+								<li><a href="javascript:" onclick="$('#updateState').val('X'); listForm.submit();">선택 목록 일괄 반려</a></li>
+							</ul>
+						</div>
+						<div class="btn-group">
+							<button type="button" class="btn btn-sm btn-new-ok" onclick="downLoadExcel()">엑셀 다운로드</button>
+						</div>
+
+						<div class="btn-group">
+							<button type="button" class="btn btn-sm btn-new-ok" onclick="downLoadImage()">영수증 다운로드</button>
+						</div>
+					</div>
+					<div class="table-responsive">
+						<table class="driving-log tblBasic" style="min-width:800px;">
+							<tr height="30" id="table-header">
+								<th width="100" class="center"><input type="checkbox" name="check-all" id="check-all" value="Y" onchange="checkAll(this, 'list-checkbox')" /></th>
+								<th width="150" class="center">사용 일자</th>
+								<th width="150" class="center">부서</th>
+								<th width="100" class="center">성명</th>
+								<th width="100" class="center">결제수단</th>
+								<th width="150" class="center">과목</th>
+								<th width="150" class="center">세목</th>
+								<th width="100" class="center">금액</th>
+								<th width="100" class="center">메모</th>
+								<!-- [D] 옵션 클릭시 reload -->
+								<th width="150" class="center">상태</th>
+								<th width="100" class="center">영수증</th>
+								<th width="100" class="center">수정</th>
+							</tr>
+							<!-- 영수증 목록 데이터 -->
+							<?=$LIST?>
+						</table>
+					</div>
+					
+					<ul class="pagination pull-right">
+						<?=$pg->getPages()?>
+					</ul>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+var nowClass;
+var changeClass;
+$(".dropdown-toggle").on("click", function(){
+	if($(this).hasClass("btn-no")){
+		nowClass = "btn-no";
+	}else if($(this).hasClass("btn-ok")){
+		nowClass = "btn-ok";
+	}else{
+		nowClass = "btn-wait";
+	}
+	if($(this).hasClass("open")){
+		$(this).removeClass("open");
+	} else {
+		$(this).addClass("open");
+	}
+});
+$(".dropdown-menu a").on("click", function(){
+	var thisOption = $(this).text();
+	if(thisOption == "미확인"){
+		changeClass = "btn-no";
+	}else if(thisOption == "확인"){
+		changeClass = "btn-ok";
+	}else{
+		changeClass = "btn-wait";
+	};
+	if(nowClass == changeClass) {
+		return false;
+	};
+	$(this).parents(".dropdown-menu").prev("button").removeClass(nowClass).addClass(changeClass).html(thisOption + " <span class='caret'></span>");
+});
+</script>
+<script>
+// 영수증 상세보기
+</script>
+
+<div class="clear" style="height:50px"></div>
+<?
+include "inc_html/footer.html";
+?>

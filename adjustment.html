@@ -1,0 +1,318 @@
+<? 
+include "inc_html/header.html";
+include "inc/drivingLog.inc.php";
+include "inc/paging.inc.php";
+include "inc/receipt.inc.php";
+include "inc/department.inc.php";
+include "inc/adminOnly.inc.php";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$pageNum				= $_GET["pageNum"];
+$beginDate				= $_GET["beginDate"];
+$endDate				= $_GET["endDate"];
+$upperDep				= 0;
+$lowerDep				= 0;
+
+if(empty($_GET["upperDep"]) == false)
+{
+	$upperDep				= $_GET["upperDep"];
+}
+
+if(empty($_GET["lowerDep"]) == false)
+{
+	$lowerDep				= $_GET["lowerDep"];
+}
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+$pg = new Paging(20, 10);
+$department = new Department($db);
+//상위부서 DATA GET
+$department->loadUpperData();
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Code
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+
+if(empty($beginDate) == false)
+{
+	$where .= " AND dl.startDate >= '". $beginDate. "' ";
+}
+
+if(empty($endDate) == false)
+{
+	$where .= " AND dl.startDate <= '". $endDate. "' ";
+}
+
+if($upperDep > 0 )
+{
+	$where .= " AND d.parentSeq=". $upperDep;
+	//하위부서 DATA GET
+	$department->loadLowerData($upperDep);
+}
+
+if($lowerDep > 0 )
+{
+	$where .= " AND d.seq =". $lowerDep;
+}
+
+
+
+
+?>
+<script>
+var	upperDep; 		
+var	lowerDep;
+function popupWrite(){
+	popup("settingCalculate.html", 650, 600);
+}
+$(function() {
+	$("#beginDate, #endDate").datepicker({
+		dateFormat: 'yy-mm-dd',
+		prevText: '이전 달',
+		nextText: '다음 달',
+		monthNames: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+		monthNamesShort: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+		dayNames: ['일','월','화','수','목','금','토'],
+		dayNamesShort: ['일','월','화','수','목','금','토'],
+		dayNamesMin: ['일','월','화','수','목','금','토'],
+		yearSuffix: ' / ',
+		changeMonth : true,
+		changeYear : true
+	});
+});
+
+function beforeSearch()
+{
+	var previousUpperDep  		 = <?=$upperDep?>;
+
+	if(previousUpperDep != upperDep)
+	{
+		lowerDep  = 0;
+	}
+}
+
+
+function search(pageNum)
+{
+	if(typeof pageNum === "undefined")
+	{
+		pageNum = 1;
+	}
+
+	var beginDate 		 = $("#beginDate").val();
+	var endDate 		 = $("#endDate").val();
+	upperDep 			 = $("#upperDep").val();
+	lowerDep 			 = $("#lowerDep").val();
+	var approverUpperDep = $("#approverUpperDep").val();
+	var approverLowerDep = $("#approverLowerDep").val();
+	
+	beforeSearch();
+	
+	window.location.href = "adjustment.html?pageNum=" + pageNum + "&beginDate=" + beginDate + "&endDate=" + endDate + "&upperDep=" + upperDep + "&lowerDep=" + lowerDep + "&approverUpperDep=" + approverUpperDep + "&approverLowerDep=" + approverLowerDep;
+}
+
+function calculateProc() {
+
+	if($("#beginDate").val().length < 1) 
+	{
+		alert("날짜를 설정해주세요");
+		return;
+	};	
+		
+	
+	if($("#endDate").val().length < 1) 
+	{
+		alert("날짜를 설정해주세요");
+		return;
+	};	
+	
+	var upperDep 		 = $("#upperDep").val();
+	var lowerDep 		 = $("#lowerDep").val();
+	var beginDate 		 = $("#beginDate").val();
+	var endDate 		 = $("#endDate").val();
+	var this_btn= $("#btn-calculate");
+	
+	var beginY		 = beginDate.split("-")[0] + "년";
+	var beginM		 = beginDate.split("-")[1] + "월";	
+	var beginD		 = beginDate.split("-")[2] + "일";
+	var endY		 = endDate.split("-")[0] + "년";
+	var endM		 = endDate.split("-")[1] + "월";	
+	var endD		 = endDate.split("-")[2] + "일";
+	
+	if(confirm(beginY + beginM + beginD + "~" + endY + endM + endD +" 유류비를 산출 하시겠습니까?.") == false) {
+		return;
+	}
+
+	this_btn.find("i").addClass("fa-spin");
+
+	$.ajax({
+			url: "ajax/calculateOil.php",
+			data: {"beginDate":beginDate, "endDate":endDate, "upperDep":upperDep, "lowerDep":lowerDep},
+			type: "post",
+			dataType : "json",
+			success: function( json ) {
+
+				alert(json.message);
+				console.log(json.message);
+				if(json.code == "OK") {
+					 window.location.reload();
+				} else {
+					this_btn.find("i").removeClass("fa-spin");
+				}
+			},
+			error: function( xhr, status ) { 
+							console.log(json.message);
+				alert("처리중 오류가 발생하였습니다. 다시 시도하여 주십시오. "); 
+				this_btn.find("i").removeClass("fa-spin");
+			},
+			complete: function( xhr, status ) { }
+	});
+}
+
+
+function excellDown()
+{	
+	var upperDep 		 = $("#upperDep").val();
+	var lowerDep 		 = $("#lowerDep").val();
+	var beginDate 		 = $("#beginDate").val();
+	var endDate 		 = $("#endDate").val();
+	
+	var resultVale = $("#result.btn-new-ok").val(); 
+	submitForm.action = "php/excelResult" + resultVale +".php?upperDep="+ upperDep +"&lowerDep=" + lowerDep + "&beginDate=" + beginDate + "&endDate=" + endDate;
+	submitForm.submit();
+	
+}
+</script>
+
+<div class="row">
+	<div class="col-md-12">
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">정산 설정</span>
+				<span class="txtCard">
+					※ 유류비 단가(250원)가 변경된 경우 다시 산출할 수 있습니다. 다시 산출할 경우 기존의 데이터는(해단 년/월) 삭제되며 변경된 단가로 재산출/입력됩니다.
+				</span>
+			</div>
+			<div class="cardCont form-inline">
+				<table class="tbl_none mt10">
+					<colgroup>
+						<col width="150"></col>
+						<col width="*"></col>
+						<col width="150"></col>
+						<col width="*"></col>
+					</colgroup>
+					<!-- 검색 데이터 -->
+					<tr>
+						<th>부서검색</th>
+						<td>
+							<select name = "upperDep" id="upperDep" class="form-control" onchange="search()">
+								<option value=0>전체 상위 부서</option>
+								<?=$department->getTreeSelectBoxOptions($upperDep)?>
+							</select>
+							<select id="lowerDep" name="lowerDep" class="form-control" onchange="search()">
+								<option value=0>소속 하위 부서</option>
+								<?=$department->getLowerTreeSelectBoxOptions($lowerDep)?>
+							</select>
+						</td>
+						<th>기간검색</th>
+						<td>
+							<input type="text" name="beginDate" id="beginDate" class="form-control" value="<?=$beginDate?>" readonly /> ~
+							<input type="text" name="endDate" id="endDate" class="form-control" value="<?=$endDate?>" readonly />
+						</td>
+					</tr>
+				</table>
+			</div>
+			<div class="cardFoot text-right">
+					<button type="button" class="btn btn-new-cancle" onclick="popupWrite()">정산 설정</button>
+				<? if(empty($LIST) == false) { ?>
+					<button type="button" id="btn-calculate" class="btn btn-new-ok" onclick="calculateProc()"><i id="rotate" class="fa fa-refresh mr5"></i>재정산하기</button>
+				<? } else { ?>
+					<button type="button" id="btn-calculate" class="btn btn-new-ok" onclick="calculateProc()"><i id="rotate" class="fa fa-refresh mr5"></i>정산하기</button>
+				<? } ?>
+					<button type="button" id="searchAdjustment" class="btn btn-new-find" onclick=""><i id="rotate" class="fa fa-search mr5"></i>검색하기</button>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-12 adjustmentList">
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">2017년 9월1일~9월15일 정산 목록</span>
+			</div>
+			<div class="cardCont">
+				<div class="btn-group pull-left">
+					<a href="javascript:excellDown();" class="btn btn-sm btn-new-ok">엑셀 다운로드</a>
+				</div>
+				<div class="btn-group pull-right chgTable">
+				<form  name="submitForm" action="" method="post">
+					<button type="button" Onclick="javascript:" class="btn btn-sm btn-new-cancle" value = "1" id = "result">기본 양식 보기</button>
+					<button type="button" Onclick="javascript:" class="btn btn-sm btn-new-cancle" value = "2">정산 전표 보기</button>
+					<button type="button" Onclick="javascript:" class="btn btn-sm btn-new-cancle" value = "3">최종 정산 집계 보기</button>
+					<button type="button" Onclick="javascript:" class="btn btn-sm btn-new-cancle" value = "4">인별 집계 보기</button>
+				</form>
+					<!--<a href="javascript:classFindTest()" class="btn btn-sm btn-new-cancle">기본 양식 보기</a>
+					<a href="javascript:classFindTest()" class="btn btn-sm btn-new-cancle">정산 전표 보기</a>
+					<a href="javascript:classFindTest()" class="btn btn-sm btn-new-cancle">최종 정산 집계 보기</a>
+					<a href="javascript:classFindTest()" class="btn btn-sm btn-new-cancle">인별 집계 보기</a>-->
+				</div>
+				<div class="clear"></div>
+				<div class="table-responsive">
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<script type="text/javascript">
+
+$(document).ready(function(){
+	$('.adjustmentList').css("display","none");
+	$(".chgTable button").eq(0).removeClass("btn-new-cancle").addClass("btn-new-ok");
+	$('.table-responsive').load('result1.html').fadeIn("slow");
+});
+$(".chgTable button").on("click", function(e){
+	var idx = $(e.currentTarget).index();
+	var loadPage = idx + 1;
+	$(".chgTable .btn-new-ok").removeClass("btn-new-ok").addClass("btn-new-cancle").removeAttr('ID');
+	//$(".chgTable .btn-new-ok").removeClass("btn-new-ok").addClass("btn-new-cancle");
+	$(".chgTable button").eq(idx).removeClass("btn-new-cancle").addClass("btn-new-ok").attr('ID', 'result');
+	var beginDate = $("#beginDate").val();
+	var endDate 		 = $("#endDate").val();
+	var lowerDep 		 = $("#lowerDep").val();
+	var upperDep 		 = $("#upperDep").val();
+	$('.table-responsive').load('result' + loadPage + '.html?beginDate='+ beginDate + "&endDate="+ endDate + "&lowerDep=" + lowerDep + "&upperDep=" + upperDep ).fadeIn("slow");
+});
+$("#searchAdjustment").on("click", function()
+{
+	if($("#beginDate").val().length < 1) 
+	{
+		alert("날짜를 설정해주세요");
+		return;
+	};	
+		
+
+	if($("#endDate").val().length < 1) 
+	{
+		alert("날짜를 설정해주세요");
+		return;
+	};	
+	$('.adjustmentList').css("display","block");
+	var resultVale = $("#result.btn-new-ok").val();
+	var beginDate 		 = $("#beginDate").val();
+	var endDate 		 = $("#endDate").val();
+	var lowerDep 		 = $("#lowerDep").val();
+	var upperDep 		 = $("#upperDep").val();
+	$('.table-responsive').load('result'+ resultVale +'.html?beginDate='+ beginDate + "&endDate="+ endDate + "&lowerDep=" + lowerDep + "&upperDep=" + upperDep).fadeIn("slow");
+	var beginY		 = beginDate.split("-")[0] + "년";
+	var beginM		 = beginDate.split("-")[1] + "월";	
+	var beginD		 = beginDate.split("-")[2] + "일";
+	var endY		 = endDate.split("-")[0] + "년";
+	var endM		 = endDate.split("-")[1] + "월";	
+	var endD		 = endDate.split("-")[2] + "일";
+	$('.adjustmentList .titCard').html(beginY + beginM + beginD + "~" + endY + endM + endD +" 정산 목록");
+});
+</script>
+<? include "inc_html/footer.html"; ?>

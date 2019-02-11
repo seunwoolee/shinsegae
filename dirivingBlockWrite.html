@@ -1,0 +1,100 @@
+<?
+include "inc_html/popupHeader.html";
+$checkValue = $_GET["checkValue"];
+
+if(empty($checkValue) == false)
+{
+	$check = explode (",", $checkValue); 
+}
+
+?>
+<script>
+var checkValue = <?=json_encode($check);?>;	
+
+function save() 
+{
+/*
+	$("#mode").val("reject");
+	$("#checkValue").val(checkValue);
+	submitForm.submit();  
+*/
+sendPush();
+}
+
+function sendPush()
+{
+	var mode = "reject";
+	var message;
+	if($('input[name=rejectReason]:checked').val() == 0)
+	{
+		message = $("#memo").val();
+	}
+	else 
+	{
+		message = $('input[name=rejectReason]:checked').val();	
+	}	
+
+	$.ajax
+	({
+		type : "POST"
+		,url : "ajax/sendPushList.php"
+		,async : false		// 동기화처리
+		,data : {"checkedArray":checkValue , "mode":mode , "message":message}
+		,dataType : "json"	// 응답의 결과로 반환되는 데이터의 종류
+		,success : function(data)
+		{
+			//alert("성공");
+			$("#mode").val("reject");
+			$("#checkValue").val(checkValue);
+			submitForm.submit();  	
+		}
+		,error: function( xhr, status ) 
+		{
+			alert("Push Id가 없는 DATA가 존재");
+		}
+		,complete : function(){
+			
+		} 	// complete Event 호출시 사용
+	});
+}
+</script>
+
+<div class='popup_title'>차량운행내역 반려 관리</div>
+
+<div class="popup_content">
+	<form name="submitForm" method="post" action="post/drivingListPost.php">
+	<input type="hidden" name="checkValue"  id="checkValue"   value="" />	
+	<input type="hidden" name="mode" id="mode" value="change" />
+		<div class="col-md-12">
+			<div class="card">
+				<div class="cardTitle">
+					<span class="titCard">반려 사유 입력</span>
+				</div>
+				<div class="cardCont">
+					<table class="tbl_none">
+						<colgroup>
+							<col width="160" />
+							<col width="" />
+						</colgroup>
+						<tr>
+							<th>반려 사유</th>
+							<td>
+								<label style="padding:0; display:block;"><input type="radio" id="rejectReason" name="rejectReason" value="2" /> 부서 변경 미처리</label>
+								<label style="padding:0; display:block;"><input type="radio" id="rejectReason" name="rejectReason" value="1" /> 업무 연관성 확인 필요</label>
+								<label style="padding:0; display:block;"><input type="radio" id="rejectReason" name="rejectReason" value="0" /> 직접 입력</label>
+								<textarea id="memo" name = "memo" class="form-control"></textarea>
+							</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+		</div>
+	</form>
+
+	<div class="center mt20">
+		<input type="button" value="푸시 발송" onclick="save()" class="btn btn-lg btn-new-ok" />
+		<input type="button" value="닫기" onclick="window.close()" class="btn btn-lg btn-new-cancle" />
+	</div>
+</div>
+
+<? include "inc_html/popupFooter.html"; ?>

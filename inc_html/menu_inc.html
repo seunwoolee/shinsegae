@@ -1,0 +1,88 @@
+<? if($_SESSION["OMember_admin"] == 'Y'){ ?>
+<ul>
+	<li>
+		<a href="department.html" class="menuDep1 <? if ($categoryTitle == '회사 관리') echo 'on'; ?>" data-toggle="tooltip" data-placement="left"><i class="fa fa-mod-C01" aria-hidden="true"></i><span>회사 관리<i class="fa fa-chevron-down" aria-hidden="true"></i></span><b>회사 관리</b></a>
+		<ul class="menu2">
+			<li>
+				<a href="department.html" class="menuDep2 <? if ($menuTitle == '부서 관리') echo 'on'; ?>">
+					<i class="fa fa-mod-department" aria-hidden="true"></i>
+					<span>부서 관리</span>
+					<b>부서 관리</b>
+				</a>
+			</li>
+			<li>
+				<a href="user.html" class="menuDep2 <? if ($menuTitle == '사용자 관리') echo 'on'; ?>">
+					<i class="fa fa-mod-user" aria-hidden="true"></i>
+					<span>사용자 관리</span>
+					<b>사용자 관리</b>
+				</a>
+			</li>
+		</ul>
+	</li>
+	<li>
+		<a href="drivingLogs.html" class="menuDep1 <? if ($categoryTitle == '차량 운행') echo 'on'; ?>"><i class="fa fa-mod-C02" aria-hidden="true"></i><span>차량 운행<i class="fa fa-chevron-down" aria-hidden="true"></i></span><b>차량 운행</b></a>
+		<ul class="menu2">
+			<li>
+				<a href="drivingLogs.html" class="menuDep2 <? if ($menuTitle == '차량 운행 내역') echo 'on'; ?>">
+					<i class="fa fa-mod-drivingLogs" aria-hidden="true"></i>
+					<span>차량 운행 내역</span>
+					<b>차량 운행 내역</b>
+				</a>
+			</li>
+			<li>
+				<a href="drivingBlock.html" class="menuDep2 <? if ($menuTitle == '운행 반려 내역') echo 'on'; ?>">
+					<i class="fa fa-ban"></i>
+					<span>운행 반려 내역</span>
+					<b>운행 반려 내역</b>
+				</a>
+			</li>
+		</ul>
+	</li>
+	<li>
+		<a href="adjustment.html" class="menuDep1 <? if ($categoryTitle == '정산') echo 'on'; ?>"><i class="fa fa-mod-C05" aria-hidden="true"></i><span>정산</span><b>정산</b></a>
+	</li>
+	<li>
+		<a href="push.html" class="menuDep1 <? if ($categoryTitle == '푸시 관리') echo 'on'; ?>"><i class="fa fa-mod-C06" aria-hidden="true"></i><span>푸시 관리</span><b>푸시 관리</b></a>
+	</li>
+	<li>
+		<a href="log.html" class="menuDep1 <? if ($categoryTitle == '로그') echo 'on'; ?>"><i class="fa fa-history" aria-hidden="true"></i><span>로그</span><b>로그</b></a>
+	</li>
+	<li>
+		<a href="setting.html" class="menuDep1 <? if ($categoryTitle == '설정') echo 'on'; ?>"><i class="fa fa-mod-C04" aria-hidden="true"></i><span>설정</span><b>설정</b></a>
+</ul>
+	</li>
+</ul>
+<? } else { ?>
+<ul>
+	<li>
+		<a href="drivingLogs.html" class="menuDep1 <? if ($categoryTitle == '차량 운행') echo 'on'; ?>"><i class="fa fa-mod-C02" aria-hidden="true"></i><span>차량 운행<i class="fa fa-chevron-down" aria-hidden="true"></i></span><b>차량 운행</b></a>
+		<ul class="menu2">
+			<li>
+				<a href="drivingLogs.html" class="menuDep2 <? if ($menuTitle == '차량 운행 내역') echo 'on'; ?>">
+					<i class="fa fa-mod-drivingLogs" aria-hidden="true"></i>
+					<span>차량 운행 내역</span>
+					<b>차량 운행 내역</b>
+				</a>
+			</li>
+			<li>
+				<a href="drivingBlock.html" class="menuDep2 <? if ($menuTitle == '운행 반려 내역') echo 'on'; ?>">
+					<i class="fa fa-ban"></i>
+					<span>운행 반려 내역</span>
+					<b>운행 반려 내역</b>
+				</a>
+			</li>
+		</ul>
+	</li>
+</ul>
+<? } ?>
+<script>
+$(document).ready(function(){
+	$(".menuDep2 .badge").each(function(e){
+		if(getCookie("oil<? echo $menuCode; ?>")!="<? echo $menuCode; ?>1"){
+		}
+		
+		//$(this).removeClass("act");
+		// alert(e+1);
+	});
+});
+</script>

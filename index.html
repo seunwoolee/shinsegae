@@ -1,0 +1,236 @@
+<?
+//###################################################
+// 로그인
+// 2016. 08. 18
+//###################################################
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Include
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+include "inc/config.php";
+include "inc/lib.inc.php";
+include "inc/mysql.inc.php";
+include "inc/company.inc.php";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$company = new Company($_POST);
+// 자동 로그아웃 세션
+$autoLogOut = $_GET["logout"];
+
+if($company->checkAutoLogin() == true)
+{
+	LIB::Alert("", "main.html");
+	$company->dbClose();
+}
+
+?>
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="">
+<meta name="author" content="">
+
+<!--[if lt IE 10]>
+<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+<![endif]-->
+
+<!-- 미디어쿼리 IE호환 -->
+<!--[if lt IE 9]>
+ <script src="http://css3-mediaqueries-js.googlecode.com/svn/trunk/css3-mediaqueries.js"></script>
+<![endif]-->
+<!-- 미디어 쿼리 IE호환 끝 -->
+
+<title><?=_TITLE?></title>
+<link rel="stylesheet" type="text/css" media="all" href="css/bootstrap.css" rel="stylesheet" />
+<link rel="stylesheet" type="text/css" media="all" href="css/bootstrap-theme.css" rel="stylesheet" />
+<link href="css/common.css" rel="stylesheet" />
+<link href="css/layout2.css" rel="stylesheet" />
+<link rel="shortcut icon" type="image/x-icon" href="images/icon/favicon.png" />
+
+<script src="js/jquery-1.11.0.min.js"></script>
+<script src="js/common.js"></script>
+
+<script>
+function loginCheck()
+{
+	if($("#cid").val().length < 1) {
+		alert("아이디를 입력해 주세요.");
+		$("#cid").focus();
+		return;
+	}
+
+	if($("#password").val().length < 1) {
+		alert("비밀번호를 입력해 주세요.");
+		$("#password").focus();
+		return;
+	}
+
+	if($("#autoLogin").is(":checked") == true) {
+		var autoLogin = "Y";
+	} else {
+		var autoLogin = "N";
+	}
+
+	$.ajax({
+			url: "ajax/login.php",
+			data: {"cid":$("#cid").val(), "password":$("#password").val(), "autoLogin":autoLogin},
+			type: "post",
+			dataType : "json",
+			success: function( json ) {
+				if(json.code == "ERROR") 
+				{
+					alert(json.message);
+					return;
+				}
+				else if(json.code == "passwordExpire")
+				{
+					alert(json.message);
+					window.location.replace("setting.html");				
+				}
+				else 
+				{
+					window.location.replace("main.html");
+				}
+			},
+			error: function( xhr, status ) { alert("로그인 오류! 다시 시도하여 주십시오." + JSON.stringify(xhr)); },
+			complete: function( xhr, status ) { }
+	});
+
+	return false;
+}
+</script>
+
+<style>
+.findPass { color:#fff; font-size:14px;}
+.findBar { color:#fff; font-size:14px; padding:0 10px;}
+</style>
+
+</head>
+<body>
+<div id="login_wrap">
+	<div class="login_content">
+		<? if($autoLogOut) { ?>
+		<div class="text-center alert alert-info" style="margin-top:20px;">보안상의 이유로 접속이 종료되었습니다. 다시 접속해 주시기 바랍니다.<button type="button" class="logoutClose close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button></div>
+		<script>
+			$(".logoutClose").on("click", function(){
+				$(".alert").hide();
+			});
+		</script>
+		<?}?>
+		
+		<h1 class="center">
+			<img src="images/common/lgo_top_off.png" width="280" alt="카택스오일 로고" />
+			<div class="mt5" style="font-size:14px; color:#fff;">관리자 로그인</div>
+		</h1>
+		<form class="form" onsubmit="return loginCheck()">
+			<div>
+				<!-- 로그인 폼 -->
+				<ul class="login_form">
+					<li><input type="text" id="cid" name="cid" class="input_id device" placeholder="아이디" maxlength="15" /></li>
+					<li><input type="password" id="password" name="password" class="input_password device" placeholder="비밀번호" maxlength="15" /></li>
+				</ul>
+				
+				<div class="mt10 center"><label class="login_check"><input type="checkbox" id="autoLogin" name="autoLogin" style="vertical-align:middle;" /> 로그인 상태 유지</label>
+				<span class="findBar"> | </span>
+				<a href="passwordSearch.html" class="findPass">비밀번호 찾기</a></div>
+
+				<div class="mt20 center"><input type="submit" value="로그인" class="submit device btn btn-lg btn-new-ok" /></div>
+				
+				<div style="margin-top:15px; color:#fff; text-align:center;vertical-align:middle;">회원가입 후 결제가 완료 되어야 정상적인 서비스 이용이 가능합니다.
+					<br />( 문의 : <a href="tel:070-8785-4799" style="color:#fff; text-decoration:underline"> 070-8785-4799</a> )
+				</div>
+				<div class="btn_guide center">
+					<a href="http://cartax.biz/oil_app_manual.pdf" target="_blank">APP 메뉴얼 다운</a>
+					<span>|</span>
+					<a href="http://cartax.biz/oil_adm_manual.pdf" target="_blank">관리자 메뉴얼 다운</a>
+					<span>|</span>
+					<a href="http://cartax.biz/cartax_proposal.pdf" target="_blank">소개서 다운</a>
+				</div>
+			</div>
+		</form>
+		<div id="copyright">
+			<address>
+				<div style="color:#fff;">사업체명 : ㈜카택스</div>
+				<div style="color:#fff;">대표 : 안재희 | 사업자등록번호 : 696-86-00649</div>
+				<div style="color:#fff;">통신판매업신고번호 : 제 2017-대구남구-0110 호</div>
+				<div style="color:#fff;">위치기반 사업자신고 번호 : 제1170호</div>
+				<div style="color:#fff;">주소 : 대구광역시 남구 현충로 170, 304호(대명동, 영남이공대학 산학협력관)</div>
+				<div style="color:#fff;">대표전화 : 070-8785-4799</div>
+				<div style="color:#fff;">이메일 : <a href="mailto:carbeast77@gmail.com" class="pl0" style="color:#fff;">carbeast77@gmail.com</a></div>
+			</address>
+			Copyright ⓒ Cartax, Inc. All Rights Reserved.
+		</div>
+	</div>
+</div>
+
+<!--  LOG corp Web Analitics & Live Chat  START -->
+<?
+if($_SESSION['http_amount']!=""){
+	$http_amt=str_replace(",", "", $_SESSION['http_amount']);
+	$http_PC="[카택스 oil]가입 및 견적서요청하기";
+	$http_PT=$http_PC;
+	$http_SO="payend";
+	$http_MP=$http_PC."_".$http_amt."_1";
+	$_SESSION['http_amount']="";
+}
+?>
+
+<script  type="text/javascript">
+//<![CDATA[
+var _HCmz={
+ PC:"<?=$http_PC?>",
+ PT:"<?=$http_PT?>",
+ SO:"<?=$http_SO?>",
+ MP:"<?=$http_MP?>"
+};
+function logCorpAScript_full(){
+	HTTP_MSN_MEMBER_NAME="";/*member name*/
+	LOGSID = "<?=$_SESSION['logsid']?>";/*logsid*/
+	LOGREF = "<?=$_SESSION['logref']?>";/*logref*/
+	var prtc=(document.location.protocol=="https:")?"https://":"http://";
+	var hst=prtc+"heeili.http.or.kr"; 
+	var rnd="r"+(new Date().getTime()*Math.random()*9);
+	this.ch=function(){
+		if(document.getElementsByTagName("head")[0]){logCorpAnalysis_full.dls();}else{window.setTimeout(logCorpAnalysis_full.ch,30)}
+	}
+	this.dls=function(){
+		var  h=document.getElementsByTagName("head")[0];
+		var  s=document.createElement("script");s.type="text/jav"+"ascript";try{s.defer=true;}catch(e){};try{s.async=true;}catch(e){};
+		if(h){s.src=hst+"/HTTP_MSN/UsrConfig/jeycorp/js/ASP_Conf.js?s="+rnd;h.appendChild(s);}
+	}
+	this.init= function(){
+		document.write('<img src="'+hst+'/sr.gif?d='+rnd+'"  style="width:1px;height:1px;position:absolute;" alt="" onload="logCorpAnalysis_full.ch()" />');
+	}
+}
+if(typeof logCorpAnalysis_full=="undefined"){	var logCorpAnalysis_full=new logCorpAScript_full();logCorpAnalysis_full.init();}
+//]]>
+</script>
+<noscript><img src="http://heeili.http.or.kr/HTTP_MSN/Messenger/Noscript.php?key=jeycorp" border="0" style="display:none;width:0;height:0;" /></noscript>
+<!-- LOG corp Web Analitics & Live Chat END  -->
+
+<!-- Google 리마케팅 태그 코드 -->
+<!--------------------------------------------------
+리마케팅 태그를 개인식별정보와 연결하거나 민감한 카테고리와 관련된 페이지에 추가해서는 안 됩니다. 리마케팅 태그를 설정하는 방법에 대해 자세히 알아보려면 다음 페이지를 참조하세요. http://google.com/ads/remarketingsetup
+--------------------------------------------------->
+<script type="text/javascript">
+/* <![CDATA[ */
+var google_conversion_id = 866948720;
+var google_custom_params = window.google_tag_params;
+var google_remarketing_only = true;
+/* ]]> */
+</script>
+<script type="text/javascript" src="//www.googleadservices.com/pagead/conversion.js"></script>
+<noscript>
+<div style="display:inline;">
+<img height="1" width="1" style="border-style:none;" alt="" src="//googleads.g.doubleclick.net/pagead/viewthroughconversion/866948720/?guid=ON&script=0"/>
+</div>
+</noscript>
+</body>
+</html>

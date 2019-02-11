@@ -1,0 +1,309 @@
+<? 
+include "inc_html/header.html";
+include "inc/logs.inc.php";
+include "inc/paging.inc.php";
+include "inc/adminOnly.inc.php";
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+$pg = new Paging(20, 10);
+$logs = new LOGs($db);
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Code
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$pageNum				= $_GET["pageNum"];
+$TableName				= $_GET["TableName"];
+$TableName2				= $_GET["TableName2"];
+
+if(empty($TableName) == false && empty($TableName2)) // TableName 하나만
+{
+	$where .= " AND TableName = '". $TableName. "' ";
+
+}
+
+if(empty($TableName) == false && empty($TableName2) == false) // 둘다
+{
+	$where .= " AND (TableName = '". $TableName. "' OR TableName = '". $TableName2. "') ";
+}
+
+$totalCount = $logs->getTotalCount($where);
+$pg->set($totalCount, $pageNum);
+$limitStartRow = $pg->startRow;
+$limitFetchSize = $pg->fetchSize;
+
+$lowerDep = $logs->getMainListRows($where,$limitStartRow,$limitFetchSize);
+
+/*
+$db->que = " SELECT ea.* , u.name FROM eventAudit as ea LEFT JOIN user as u On u.employeeNumber = ea.employeeNumber ";
+$db->que .= " WHERE (1) ". $where ." ORDER BY seq desc  LIMIT ". $pg->startRow. ", ". $pg->fetchSize;
+$db->query();
+$lists = $db->getRows();
+
+for($i=0;$i<count($lists);$i++)
+{
+	$row = $lists[$i];
+	$arrColumns = explode(",",$row["columns"]);
+	$arrBefore  = explode(",",$row["beforeData"]);
+	$arrAfter 	= explode(",",$row["afterData"]);
+	$ment		= "";
+	$object		= "";
+	$check		= true;
+	$firstRow = 1;
+
+	if($row["beforeData"] == $row["afterData"]) //모두 DATA 무시
+	{
+		$check = false;
+	}
+	if($row["eventType"] == "수정" && $check == true)
+	{
+		$arrDiff = $logs->getArrayDiff($arrColumns,$arrBefore,$arrAfter);
+		for($j=0;$j<count($arrDiff["col"]);$j++)
+		{
+			$col 		= $arrDiff["col"][$j];
+			$colKor 	= $logs->getColumns($row["TableName"],$col); // What kind of Columns
+			$object 	= $logs->getObject($row["TableName"],$arrDiff["inter"]); // What kind of object			
+			$beforeData	= $logs->getKoreaData($row["TableName"],$col,$arrDiff["before"][$col],$arrDiff["inter"]); // What kind of before DATA
+			$afterData	= $logs->getKoreaData($row["TableName"],$col,$arrDiff["after"][$col],$arrDiff["inter"]); // What kind of after DATA
+			$ment 		.= "&nbsp<b>".$colKor."</b> : ".$beforeData." -> ".$afterData; // what ment
+
+		}
+	}
+	else// 입력 및 삭제 시 멘트
+	{
+		$ment = $logs->getMent($row["eventType"],$row["TableName"],$arrColumns,$arrBefore,$arrAfter);
+	}
+	$TableKor = LOGS::getTable($row["TableName"]); //get korea language Table
+	$nameAndEmployeeNumber = $row["name"]."(".$row["employeeNumber"].")";
+	if($firstRow == 1)
+	{
+
+		$lowerDep .= "
+						<td class='text-center'>".$row["createTime"]."</td>
+						<td class='text-center'>".$nameAndEmployeeNumber."</td>
+						<!-- <td class='text-center'>".$TableKor."</td> -->
+						<td class='text-center'><p>".$row["description"]." ".$object."</p>".$ment."</td>
+						<td class='text-center'>".$row["ip"]."</td>
+					</tr>";
+		$firstRow++;
+	}
+	else
+	{
+
+		$lowerDep .= "
+					<tr>
+						<td class='text-center'>".$row["createTime"]."</td>
+						<td class='text-center'>".$nameAndEmployeeNumber."</td>
+						<!-- <td class='text-center'>".$TableKor."</td> -->
+						<td class='text-center'><p>".$row["description"]." ".$object."</p>".$ment."</td>
+						<td class='text-center'>".$row["ip"]."</td>
+					</tr>";
+	}
+	
+}
+
+if(empty($lowerDep))
+{
+	$lowerDep = "	<tr>
+					<td class='text-center' colspan='4' style='height:295px;'>데이터가 없습니다.</td>
+					</tr>";
+}
+*/
+?>
+<script>
+function callMyself(Tablename)
+{
+	if(Tablename == "user") // 복수개의 Table일때
+	{
+		document.location.href="?TableName=user&TableName2=previousReg";
+	}
+	else if(Tablename == "oilCost")
+	{
+		document.location.href="?TableName=oilCostPaid&TableName2=calculateOilSetting";
+	}
+	else if(Tablename == "setting")
+	{
+		document.location.href="?TableName=company&TableName2=purpose";
+	}
+	else if(Tablename == "all")
+	{
+		document.location.href="log.html";
+	}
+	else
+	{
+		document.location.href="?TableName="+Tablename;
+	}
+}
+
+function listPaging(pageNum)
+{
+	search(pageNum);
+}
+
+function search(pageNum)
+{
+	if(typeof pageNum === "undefined")
+	{
+		pageNum = 1;
+	}
+
+	
+	var TableName 	 = '<?=$TableName?>';
+	var TableName2 	 = '<?=$TableName2?>';
+
+	
+	if(TableName.length > 0 && TableName2.length == 0)
+	{
+		location.href = "?TableName=" + TableName + "&pageNum=" + pageNum;
+	}
+	else if(TableName2.length > 0)
+	{
+		location.href = "?TableName=" + TableName + "&TableName2=" + TableName2 + "&pageNum=" + pageNum;
+	}
+	else
+	{
+		document.location.href="log.html?pageNum=" + pageNum;
+	}
+//	window.location.href = "log.html?tableName=" + tableName + "&pageNum=" + pageNum;
+}
+</script>
+<div class="row">
+	<div class="col-md-12">
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">로그</span>
+			</div>
+			<div class="cardCont">
+				<div class="clear"></div>
+				<div class="table-responsive">
+					<table class="tblBasic objCont mt10" style="min-width:600px;">
+						<colgroup>
+							<col width="150" />
+							<col width="150" />
+							<col width="150" />
+							<col width="" />
+							<col width="120" />
+						</colgroup>
+						<thead>
+						<tr>
+							<th class="text-center">분류</th>
+							<th class="text-center">접속일시</th>
+							<th class="text-center">성명(ID)</th>
+							<th class="text-center">수행업무내역</th>
+							<th class="text-center">접속IP</th>
+						</tr>
+						</thead>
+						<tbody>
+						<tr>
+							<td class="text-center chgHeight" rowspan="20" valign="top" style="padding:0; border-right:3px solid #eceeef;">
+								<div style="position:absolute; top:0; left:0; right:0; bottom:0; overflow:auto;">
+									<table class="tblDepart nowFirst table-hover" style="margin-top:0; border-bottom:1px solid #eee;">
+										<tbody>
+										<tr>
+											<td <? if ($TableName == "") {?> class="text-left active" <? } else {?> class="text-left <? } ?> style="padding:0 !important"><a href="javascript:callMyself('all');" style="color:#444; display:block; padding:10px 7px 9px 7px; cursor:default; color:#d41217;">전체보기</a></td>
+										</tr>
+										<tr>
+											<td <? if ($TableName == "department") {?> class="text-left active" <? } else {?> class="text-left <? } ?> style="padding:0 !important"><a href="javascript:callMyself('department');" style="color:#444; display:block; padding:10px 7px 9px 7px;">부서관리</a></td>
+										</tr>
+										<tr>
+											<td <? if ($TableName == "user") {?> class="text-left active" <? } else {?> class="text-left <? } ?> style="padding:0 !important"><a href="javascript:callMyself('user');" style="color:#444; display:block; padding:10px 7px 9px 7px;">사용자관리</a></td>
+										</tr>
+										<tr>
+											<td <? if ($TableName == "drivingLog") {?> class="text-left active" <? } else {?> class="text-left <? } ?> style="padding:0 !important"><a href="javascript:callMyself('drivingLog');" style="color:#444; display:block; padding:10px 7px 9px 7px;">차량운행내역</a></td>
+										</tr>
+										<tr>
+											<td <? if ($TableName == "oilCostPaid") {?> class="text-left active" <? } else {?> class="text-left <? } ?> style="padding:0 !important"><a href="javascript:callMyself('oilCost');" style="color:#444; display:block; padding:10px 7px 9px 7px;">정산</a></td>
+										</tr>
+										<tr>
+											<td <? if ($TableName == "push") {?> class="text-left active" <? } else {?> class="text-left <? } ?> style="padding:0 !important"><a href="javascript:callMyself('push');" style="color:#444; display:block; padding:10px 7px 9px 7px;">푸시관리</a></td>
+										</tr>
+										<tr>
+											<td <? if ($TableName == "company") {?> class="text-left active" <? } else {?> class="text-left <? } ?> style="padding:0 !important"><a href="javascript:callMyself('setting');" style="color:#444; display:block; padding:10px 7px 9px 7px;">설정</a></td>
+										</tr>
+										<tr>
+											<td <? if ($TableName == "Login") {?> class="text-left active" <? } else {?> class="text-left <? } ?> style="padding:0 !important"><a href="javascript:callMyself('Login');" style="color:#444; display:block; padding:10px 7px 9px 7px;">로그인</a></td>
+										</tr>
+										</tbody>
+									</table>
+								</div>
+								<script>
+								$(document).ready(function(){
+									var firstLen = $(".nowFirst tr").length;
+									var totalLen = $(".objCont tr").length;
+									var secondLen = totalLen - firstLen - 1;
+									if(firstLen > secondLen) {
+										$(".chgHeight").attr("height", firstLen * 37 + 1);
+									}
+								});
+								</script>
+							</td>
+							<?=$lowerDep?>
+						<!--
+						<tr>
+							<td class='text-center'>2017.12.20 (14:24)</td>
+							<td class='text-center'>김지영(test)</td>
+							<td class='text-center'>부서관리</td>
+							<td class='text-center'>(부서 수정) 이름 : 비 -> 비1 , 부서코드 : 1000 -> 2000 </td>
+							<td class='text-center'>118.220.204.2</td>
+						</tr>						
+						<tr>
+							<td class='text-center'>2017.12.20 (14:24)</td>
+							<td class='text-center'>이승우(sentry)</td>
+							<td class='text-center'>사용자관리</td>
+							<td class='text-center'>(사용자 추가) 이름 : 이승우 , email : sentry@naver.com </td>
+							<td class='text-center'>118.220.204.2</td>
+						</tr>
+						<tr>
+							<td class='text-center'>2017.12.20 (14:24)</td>
+							<td class='text-center'>이승우(sentry)</td>
+							<td class='text-center'>부서관리</td>
+							<td class='text-center'>(부서 추가) 이름 : 개발2팀 , 부서코드 : 30000 </td>
+							<td class='text-center'>118.220.204.2</td>
+						</tr>
+
+						-->
+						</tbody>
+					</table>
+				</div>
+				<ul class="pagination pull-right">
+					<?=$pg->getPages()?>
+				</ul>
+			</div>
+		</div>
+	</div>
+</div>
+
+</article>
+
+<div class="copy">
+	<? include "inc_html/copy.html"; ?>
+</div>
+
+<!-- Modal -->
+<form name="submitForm" method="post" action="" class="modal fade" id="modal" tabindex="-1" role="dialog" aria-labelledby="newDepLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header" style="border-top:4px solid #ffcc00">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+				<h4 class="modal-title" id="myModalLabel">전체 푸시 발송</h4>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<label class="control-label">푸시 발송 대상</label>
+					<input type="text" class="form-control pushTarget" id="" name="" value="전체 발송" readonly />
+				</div>
+				<div class="form-group">
+					<label class="control-label">푸시 내용 입력</label>
+					<textarea name='' id='' class='form-control' value='' placeholder='푸시 내용을 입력하세요.'></textarea>
+				</div>
+			</div>
+			<div class="modal-footer" style="background:#f9f9f9;">
+				<button type="button" class="btn btn-new-cancle" data-dismiss="modal">발송취소</button>
+				<button type="button" class="btn btn-new-ok" onclick="save()">발송하기</button>
+			</div>
+		</div>
+	</div>
+</form>
+
+</body>
+</html>

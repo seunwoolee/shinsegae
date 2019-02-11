@@ -1,0 +1,310 @@
+<? 
+include "inc_html/header.html";
+include "inc/push.inc.php";
+include "inc/adminOnly.inc.php";
+
+$db = new Mysql();
+$push = new Push($db);
+$year				= $_GET["year"];
+$month				= $_GET["month"];
+if(empty($year))
+{
+	$year=date("Y");
+}
+if(empty($month))
+{
+	$month=date("m");
+}
+
+
+
+$upperDepartmentSeq = $push->getDefaultUpperDepartment();
+if($_GET["upperDepartmentSeq"] > 0)
+{
+	$upperDepartmentSeq		= $_GET["upperDepartmentSeq"];
+}
+
+$where	= "AND d.parentSeq= ".$upperDepartmentSeq;
+$upperDepartment = $push->getUpperDepartment();
+$lowerDepartment = $push->getLowerDepartment($where);
+$rowSpan = $push->getRowSpan($where);
+$LIST = $push->getPushHistory($year,$month);
+?>
+<script>
+function callLowerDepartment(seq)
+{
+	document.location.href="?upperDepartmentSeq="+seq;
+}
+
+function save() 
+{
+	sendPush();//Ajax로 일단 보내고 Post로 Insert 하기!!
+	//submitForm.submit();
+}
+
+function sendPush()
+{
+	var checkedArray = $("#checkedArray").val();
+	var mode = $("#mode").val();
+	var message = $("#message").val();
+	
+	$.ajax
+	({
+		type : "POST"
+		,url : "ajax/sendPush.php"
+		,async : false		// 동기화처리
+		,data : {"checkedArray":checkedArray , "mode":mode , "message":message}
+		,dataType : "json"	// 응답의 결과로 반환되는 데이터의 종류
+		,success : function(data)
+		{
+			submitForm.submit();		
+		}
+		,error: function( xhr, status ) 
+		{
+			alert("Push Id가 없는 DATA가 존재");
+		}
+		,complete : function(){
+			
+		}	// complete Event 호출시 사용
+	});
+}
+
+function search() 
+{
+	var year = $("#year").val();
+	var month = $("#month").val();
+	window.location.href = "push.html?year=" + year + "&month=" + month;
+}
+
+function init() 
+{
+	var year = $("#year").val();
+	window.location.href = "push.html?year=" + year;
+}
+</script>
+<style>
+.tblListNone td { padding-right:10px; cursor:pointer;}
+.tblListNone .txtTbl3 { display:none; padding:20px; color:#fff; background:#888;}
+.tblListNone .tdArrow { position:absolute; right:15px; top:20px;}
+</style>
+<div class="row">
+	<div class="col-md-8">
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">푸시 발송 목록</span>
+			</div>
+			<div class="cardCont">
+				<div class="btn-group pull-right">
+					<a href="javascript:;" class="btn btn-sm btn-new-ok">전체 발송</a>
+					<a href="javascript:;" class="btn btn-sm btn-new-ok">승인권자 발송</a>
+					<a href="javascript:;" class="btn btn-sm btn-new-ok">선택 발송</a>
+				</div>
+				<div class="clear"></div>
+				<div class="table-responsive">
+					<table class="tblBasic objCont mt10" style="min-width:600px;">
+						<thead>
+						<tr>
+							<th class="text-center">상위부서(레벨1)</th>
+							<th class="text-center">소속부서(레벨2)</th>
+							<th class="text-center">성명</th>
+							<th class="text-center">사원번호</th>
+							<th class="text-center"><input type="checkbox" name="check-all" id="check-all" value="Y" onchange="checkAll(this, 'list-checkbox')" /></th>
+						</tr>
+						</thead>
+						<tbody>
+						<tr>
+							<td class="text-center" rowspan="<?=$rowSpan?>"  valign="top" style="padding:0; border-right:3px solid #eceeef;">
+								<div style="overflow:auto;">
+									<table class="tblDepart table-hover">
+										<tbody>
+											<?=$upperDepartment?>
+										</tbody>
+									</table>
+								</div>
+							</td>
+							<?=$lowerDepartment?>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-4">
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">푸시 발송 내역</span>
+			</div>
+			<div class="cardSearch form-inline">
+				<select id="year" name="year" class="form-control">
+					<?=LIB::selectBoxYear($year)?>			
+				</select>
+
+				<select id="month" name="month" class="form-control">
+					<?=LIB::selectBoxMonth($month)?>
+				</select>
+				
+				<a href="javascript:search();" class="btn btn-sm btn-new-find">검색</a>
+				<button type="button" class="btn btn-sm btn-new-cancle" onclick="init()"><i class="fa fa-rotate-left mr5"></i>이번달로</button>
+			</div>
+			<div class="cardCont" style="overflow:auto; max-height:700px;">
+				<table class="tblListNone table-hover">
+					<tbody>
+					<?=$LIST?>
+					<!--
+					<tr>
+						<th></th>
+						<td>
+							<div class="txtTbl1">2017.09.25 (10:00)</div>
+							<div class="txtTbl2 mt10">전체 푸시</div>
+							<div class="txtTbl3 mt10">
+								부서 변동이 31일자로 있을 예정입니다.<br />10월1일까지 모든 직원은 부서 변경을 하여 운행내역 승인 시 문제가 없도록 부탁드립니다.
+							</div>
+							<div class="tdArrow"><i class="fa fa-chevron-down fa-2x"></i></div>
+						</td>
+					</tr>
+					<tr>
+						<th></th>
+						<td>
+							<div class="txtTbl1">2017.09.24 (10:00)</div>
+							<div class="txtTbl2 mt10">승인권자 푸시</div>
+							<div class="txtTbl3 mt10">
+								부서 변동이 31일자로 있을 예정입니다.<br />10월1일까지 모든 직원은 부서 변경을 하여 운행내역 승인 시 문제가 없도록 부탁드립니다.
+							</div>
+							<div class="tdArrow"><i class="fa fa-chevron-down fa-2x"></i></div>
+						</td>
+					</tr>
+					<tr>
+						<th></th>
+						<td>
+							<div class="txtTbl1">2017.09.23 (10:00)</div>
+							<div class="txtTbl2 mt10">전체 푸시</div>
+							<div class="txtTbl3 mt10">
+								부서 변동이 31일자로 있을 예정입니다.<br />10월1일까지 모든 직원은 부서 변경을 하여 운행내역 승인 시 문제가 없도록 부탁드립니다.
+							</div>
+							<div class="tdArrow"><i class="fa fa-chevron-down fa-2x"></i></div>
+						</td>
+					</tr>
+					<tr>
+						<th></th>
+						<td>
+							<div class="txtTbl1">2017.09.22 (10:00)</div>
+							<div class="txtTbl2 mt10">FS담당->개발1->김지영 팀장</div>
+							<div class="txtTbl3 mt10">
+								부서 변동이 31일자로 있을 예정입니다.<br />10월1일까지 모든 직원은 부서 변경을 하여 운행내역 승인 시 문제가 없도록 부탁드립니다.
+							</div>
+							<div class="tdArrow"><i class="fa fa-chevron-down fa-2x"></i></div>
+						</td>
+					</tr>
+					<tr>
+						<th></th>
+						<td>
+							<div class="txtTbl1">2017.09.21 (10:00)</div>
+							<div class="txtTbl2 mt10">전체 푸시</div>
+							<div class="txtTbl3 mt10">
+								부서 변동이 31일자로 있을 예정입니다.<br />10월1일까지 모든 직원은 부서 변경을 하여 운행내역 승인 시 문제가 없도록 부탁드립니다.
+							</div>
+							<div class="tdArrow"><i class="fa fa-chevron-down fa-2x"></i></div>
+						</td>
+					</tr>
+					-->
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+</div>
+<script>
+$(".btn-group a").on("click", function(e){
+	var idx = $(e.currentTarget).index();
+	var target;
+	var checkedArray = [];
+	if(idx == 0) 
+	{
+		$("input:checkbox[type='checkbox']:checked").prop("checked", false);
+		$(".pushTarget").val("전체 발송");
+		$("#mode").val("allSend");
+	} 
+	else if(idx == 1) 
+	{
+		$("input:checkbox[type='checkbox']:checked").prop("checked", false);
+		$(".pushTarget").val("승인권자 발송");
+		$("#mode").val("approverSend");
+	} 
+	else 
+	{
+		if($('.list-checkbox:checkbox:checked').length<1) 
+		{
+			alert("발송할 사용자를 선택해 주세요.");
+			return false;
+		}
+		else
+		{
+			$("input:checkbox[type='checkbox']:checked").each(function()
+			{
+				if($(this).attr("id") != "check-all") 
+				{
+					checkedArray.push($(this).val());
+				}
+			});
+		} 
+		$("#checkedArray").val(checkedArray);
+		$("#mode").val("choiceSend");
+		$(".pushTarget").val("선택 발송");
+	}
+
+	$("#modal").modal();
+});
+
+var nowBoard = -1;
+$(".tblListNone tr").on("click", function(e){
+	var idx = $(e.currentTarget).index();
+	$(".tblListNone").find(".txtTbl3").stop().slideUp();
+	$(".tblListNone").find(".tdArrow i").removeClass("fa-chevron-up").addClass("fa-chevron-down");
+	$(".tblListNone").find("td").removeClass("spec");
+	if(nowBoard!=idx){
+		$(this).find(".txtTbl3").stop().slideDown();
+		$(this).find(".tdArrow i").removeClass("fa-chevron-down").addClass("fa-chevron-up");
+		$(this).find("td").addClass("spec");
+		nowBoard = idx;
+	} else {
+		nowBoard = -1;
+	}
+});
+</script>
+
+</article>
+
+<div class="copy">
+	<? include "inc_html/copy.html"; ?>
+</div>
+
+<!-- Modal -->
+<form name="submitForm" method="post" action="post/pushListPost.php" class="modal fade" id="modal" tabindex="-1" role="dialog" aria-labelledby="newDepLabel" aria-hidden="true">
+	<input type="hidden" name="mode" id="mode" value="add" >
+	<input type="hidden" name="checkedArray" id="checkedArray" value="" >	
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header" style="border-top:4px solid #ffcc00">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+				<h4 class="modal-title" id="myModalLabel">전체 푸시 발송</h4>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<label class="control-label">푸시 발송 대상</label>
+					<input type="text" class="form-control pushTarget" id="" name="" value="전체 발송" readonly />
+				</div>
+				<div class="form-group">
+					<label class="control-label">푸시 내용 입력</label>
+					<textarea name='message' id='message' class='form-control' value ='' placeholder='푸시 내용을 입력하세요.'></textarea>
+				</div>
+			</div>
+			<div class="modal-footer" style="background:#f9f9f9;">
+				<button type="button" class="btn btn-new-cancle" data-dismiss="modal">발송취소</button>
+				<button type="button" class="btn btn-new-ok" onclick="save()">발송하기</button>
+			</div>
+		</div>
+	</div>
+</form>
+
+</body>
+</html>

@@ -1,0 +1,238 @@
+<?
+include "inc_html/popupHeader.html";
+include "inc/department.inc.php";
+include "inc/receipt.inc.php";
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$companySeq							= $COMPANY_SEQ;
+$year										= $_GET["year"];
+$departmentSeq						= $_GET["departmentSeq"];
+$receiptProjectSeq					= $_GET["receiptProjectSeq"];
+$receiptAccountCodeSeq			= $_GET["receiptAccountCodeSeq"];
+$receiptAccountCodeDetailSeq	= $_GET["receiptAccountCodeDetailSeq"];
+$card										= $_GET["card"];
+$state									= $_GET["state"];
+$beginDate								= $_GET["beginDate"];
+$endDate								= $_GET["endDate"];
+
+if(empty($year)) $year = date("Y");
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+$department = new Department($db, $companySeq);
+$department->loadData();
+
+
+
+
+
+// 계정과목, 세목
+//-----------------------------------------------------------------------------------
+$db->que = "SELECT * FROM receiptAccountCode WHERE companySeq=". $companySeq. " AND enabled != 'X' ORDER BY name ASC";
+$db->query();
+while($row = $db->getRow())
+{
+	$AC_OPTIONS .= "<option value='". $row["seq"]. "' ". LIB::isSelected($row["seq"], $receiptAccountCodeSeq). ">[". $row["code"]. "] ". $row["name"]. "</option>";
+}
+
+if(empty($receiptAccountCodeSeq) == false)
+{
+	$db->que = "SELECT * FROM receiptAccountCodeDetail WHERE enabled != 'X' AND receiptAccountCodeSeq=". $receiptAccountCodeSeq. " ORDER BY name ASC";
+	$db->query();
+	while($row = $db->getRow())
+	{
+		$ACD_OPTIONS .= "<option value='". $row["seq"]. "' ". LIB::isSelected($row["seq"], $receiptAccountCodeDetailSeq). ">". $row["name"]. "</option>";
+	}
+}
+
+
+// 프로젝트
+//-----------------------------------------------------------------------------------
+$db->que = "SELECT * FROM receiptProject WHERE companySeq=". $companySeq. " AND enabled='Y' ORDER BY sort ASC";
+$db->query();
+while($row = $db->getRow())
+{
+	$PROJECT_OPTIONS .= "<option value='". $row["seq"]. "' ". LIB::isSelected($row["seq"], $receiptProjectSeq). ">[". $row["code"]. "] ". $row["name"]. "</option>";
+}
+?>
+
+
+<script>
+function getCount() {
+	var departmentSeq						= $("#departmentSeq").val();
+	var receiptProjectSeq					= $("#receiptProjectSeq").val();
+	var receiptAccountCodeSeq			= $("#receiptAccountCodeSeq").val();
+	var receiptAccountCodeDetailSeq	= $("#receiptAccountCodeDetailSeq").val();
+	var card										= $("#card").val();
+	var state									= $("#state").val();
+	var beginDate								= $("#beginDate").val();
+	var endDate								= $("#endDate").val();
+
+	$.ajax({
+			url: "ajax/getReceiptCount.php",
+			data: {
+				"departmentSeq":departmentSeq, 
+				"receiptProjectSeq":receiptProjectSeq, 
+				"receiptAccountCodeSeq":receiptAccountCodeSeq, 
+				"receiptAccountCodeDetailSeq":receiptAccountCodeDetailSeq, 
+				"card":card, 
+				"state":state, 
+				"beginDate":beginDate, 
+				"endDate":endDate, 
+				"widhImage":true
+			},
+			type: "post",
+			dataType : "json",
+			success: function( json ) {
+				$("#receiptCount").html(json.receiptCount);
+			},
+			error: function( xhr, status ) { alert("처리중 오류가 발생하였습니다. 다시 시도하여 주십시오. "); },
+			complete: function( xhr, status ) { }
+	});
+}
+
+function getReceiptAccountCodeDetails(seq) {
+	$.ajax({
+			url: "ajax/getReceiptAccountCodeDetails.php",
+			data: {"receiptAccountCodeSeq":seq},
+			type: "post",
+			dataType : "json",
+			success: function( json ) {
+				$("#receiptAccountCodeDetailSeq").html("");
+				$("#receiptAccountCodeDetailSeq").append("<option value='0'>세목 선택</option>");
+				$.each(json.receiptAccountCodeDetails, function(key) {
+					$("#receiptAccountCodeDetailSeq").append("<option value='" + this.seq + "' data='" + this.type + "'>" + this.name + "</option>");
+				});
+			},
+			error: function( xhr, status ) { alert("처리중 오류가 발생하였습니다. 다시 시도하여 주십시오. "); },
+			complete: function( xhr, status ) { }
+	});
+
+	getCount();
+}
+
+$(function() {
+	$("#beginDate, #endDate").datepicker({
+		dateFormat: 'yy-mm-dd',
+		prevText: '이전 달',
+		nextText: '다음 달',
+		monthNames: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+		monthNamesShort: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+		dayNames: ['일','월','화','수','목','금','토'],
+		dayNamesShort: ['일','월','화','수','목','금','토'],
+		dayNamesMin: ['일','월','화','수','목','금','토'],
+		yearSuffix: ' / ',
+		changeMonth : true,
+		changeYear : true
+	});
+});
+
+
+function downLoad() {
+	submitForm.submit();
+}
+
+$(document).ready(function(){
+	getCount()
+});
+
+</script>
+
+<style>
+ul > li {width:100%; height:30px; position:relative;}
+ul > li.empty {text-align:center;}
+ul > li > input {position:absolute; right:20px; top:5px;}
+</style>
+<div class='popup_title'>영수증 이미지 다운로드</div>
+
+<div class="popup_content">
+	<form  name="submitForm" action="php/receiptImageDown.php" method="post">
+		<table class="tbl_none">
+			<col width="150"></col><col width="*"></col>
+			<col width="150"></col><col width="*"></col>
+			<!-- 검색 데이터 -->
+			<tr>
+				<th>부서</th>
+				<td>
+					<select id="departmentSeq" name="departmentSeq" class="btn btn-default" onchange="getCount()">
+						<option value="">전체 부서</option>
+						<?=$department->getTreeSelectBoxOptions($departmentSeq)?>
+					</select>
+				</td>
+				<th>프로젝트</th>
+				<td>
+					<select id="receiptProjectSeq" name="receiptProjectSeq" class="btn btn-default" onchange="getCount()">
+						<option value="">전체 프로젝트</option>
+						<?=$PROJECT_OPTIONS?>
+					</select>
+				</td>
+			</tr>
+			<tr>
+				<th>계정과목</th>
+				<td>
+					<select id="receiptAccountCodeSeq" name="receiptAccountCodeSeq" class="btn btn-default" onchange="getReceiptAccountCodeDetails(this.value)">
+						<option value="">계정과목 선택</option>
+						<?=$AC_OPTIONS?>
+					</select>
+				</td>
+				<th>세목</th>
+				<td>
+					<select id="receiptAccountCodeDetailSeq" name="receiptAccountCodeDetailSeq" class="btn btn-default" onchange="getCount()">
+						<option value="">세목 선택</option>
+						<?=$ACD_OPTIONS?>
+					</select>
+				</td>
+			</tr>
+			<tr>
+				<th>결제수단</th>
+				<td>
+					<select id="card" name="card" class="btn btn-default" onchange="getCount()">
+						<option value="">전체</option>
+						<option value="Company" <?=LIB::isSelected("Company", $card)?>><?=Receipt::getCardFullText("Company")?></option>
+						<option value="Personal" <?=LIB::isSelected("Personal", $card)?>><?=Receipt::getCardFullText("Personal")?></option>
+					</select>
+				</td>
+				<th>처리상태</th>
+				<td>
+					<select id="state" name="state" class="btn btn-default" onchange="getCount()">
+						<option value="">전체</option>
+						<option value="N" <?=LIB::isSelected("N", $state)?>><?=Receipt::getStateText("N")?></option>
+						<option value="Y" <?=LIB::isSelected("Y", $state)?>><?=Receipt::getStateText("Y")?></option>
+						<option value="X" <?=LIB::isSelected("X", $state)?>><?=Receipt::getStateText("X")?></option>
+					</select>
+				</td>
+			</tr>
+			<tr>
+				<th>기간검색</th>
+				<td colspan="2">
+					<input type="text" name="beginDate" id="beginDate" class="input" value="<?=$beginDate?>" style="width:95px" onchange="getCount()" readonly  /> ~
+					<input type="text" name="endDate" id="endDate" class="input" value="<?=$endDate?>" style="width:95px" onchange="getCount()" readonly />
+				</td>
+			</tr>
+		</table>
+
+		<div class="receiptCare">
+			<div class="receiptNum">
+				<b id="receiptCount"></b> 건<br />
+				<span>영수증 이미지 건수</span>
+			</div>
+			<div class="receiptText">
+				다운로드는 최대 100건 까지 가능 합니다.<br />
+				100건이 넘을경우 기간을 설정하여 구간별로 다운로드 받으세요.
+			</div>
+		</div>
+
+		<div class="center mt20">
+			<input type="button" class="b80 btn mobile_mt10 btn-lg btn-oil" value="다운로드" onclick="downLoad()" />
+			<input type="button" class="b80 btn mobile_mt10 btn-lg btn-default" value="닫기" onclick="window.close()" />
+		</div>
+	</form>
+</div>
+
+
+<? include "inc_html/popupFooter.html"; ?>

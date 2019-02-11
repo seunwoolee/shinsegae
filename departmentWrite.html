@@ -1,0 +1,119 @@
+<?
+include "inc_html/popupHeader.html";
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$seq						= $_GET["seq"];
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+
+
+if($seq > 0)
+{
+	$db->que = "SELECT * FROM department WHERE seq=". $seq;
+	$db->query();
+	$row  = $db->getRow();
+}
+
+
+?>
+<script>
+function save() 
+{
+	if($("#departmentName").val().length < 1) {
+		alert("부서명을 입력해 주세요");
+		return;
+	};
+	
+	if($("#departmentCode").val().length < 1) {
+		alert("부서코드를 입력해 주세요");
+		return;
+	};
+	
+
+	$("#mode").val("upperWrite");
+	submitForm.submit();
+}
+
+function removeDep(seq) 
+{
+	if(confirm("삭제할 경우 복구가 불가능 합니다. 그래도 삭제 하시겠습니까?")) 
+	{
+		$("#seq").val(seq);
+		$("#mode").val("remove");
+		submitForm.submit();
+	}
+	
+}
+
+function upperModify(seq) 
+{
+		$("#mode").val("upperModify");
+		$("#seq").val(seq);
+		$("#departmentName").val();
+		$("#departmentCode").val();
+		submitForm.submit();
+}
+
+
+
+
+</script>
+<div class='popup_title'>상위부서(레벨1) 관리</div>
+<div class="popup_content">
+	<form name="submitForm" method="post" action="post/departmentPost.php">
+		<input type="hidden" name="mode" id="mode" value="add" />
+		<input type="hidden" name="seq" id="seq" value="0" />
+		<input type="hidden" name="parentSeq" id="parentSeq" value="0" />
+		<div class="col-md-12">
+			<div class="card">
+				<div class="cardTitle">
+				<?if($seq > 0){?>
+					<span class="titCard">상위부서(레벨1) 수정</span>
+				<?}else{?>
+					<span class="titCard">상위부서(레벨1) 추가</span>
+				<?}?>
+				</div>
+				<div class="cardCont">
+					<table class="tbl_none">
+						<colgroup>
+							<col width="160" />
+							<col width="" />
+						</colgroup>
+						<tr class="border_top">
+							<th>상위 부서(레벨 1) 이름</th>
+							<td>
+								<input type="text" name="departmentName" id="departmentName" class="input" value="<?=$row["name"]?>" autocomplete="off" <?=$readonly?> />
+							</td>
+						</tr>
+						<tr>
+							<th>상위 부서(레벨 1) 코드</th>
+							<td>
+								<!-- 크롬에서 자동완성 문제 때문 =>> p_assword-->
+								<input type="text" name="departmentCode" id="departmentCode" class="input"  value="<?=$row["departmentCode"]?>" autocomplete="off" placeholder="<?=$passwordGuid?>" />
+							</td>
+						</tr>
+					</table>
+					<div class="mt10">
+						• 소속부서가 있는 경우 삭제가 불가능합니다. 
+					</div>
+				</div>
+			</div>
+		</div>
+	</form>
+
+	<div class="center mt20">
+		<? if($seq > 0) { ?>
+		<input type="button" value="저장" onclick="upperModify(<?=$seq?>)" class="btn btn-lg btn-new-ok" />
+		<input type="button" value="삭제" onclick="removeDep(<?=$seq?>)" class="btn btn-lg btn-new-cancle" />
+		<? } else { ?>
+		<input type="button" value="저장" onclick="save()" class="btn btn-lg btn-new-ok" />
+		<? } ?>
+		<input type="button" value="닫기" onclick="window.close()" class="btn btn-lg btn-new-cancle" />
+	</div>
+</div>
+
+<? include "inc_html/popupFooter.html"; ?>

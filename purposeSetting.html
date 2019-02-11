@@ -1,0 +1,360 @@
+<? 
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Include
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+include "inc_html/popupHeader.html";
+
+
+
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+
+
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+
+$db->que = "SELECT * FROM purpose WHERE purposeDefault='Y' AND purposeState IN ('Y','N') ORDER BY sort";
+$db->query();
+while($row = $db->getRow())
+{
+	if($row["purposeState"] == "Y")
+	{
+		$purposeState = "사용함";
+	}
+	else if($row["purposeState"] == "N")
+	{
+		$purposeState = "사용안함";
+	}
+
+	$LIST .= "
+				<tr>
+					<td>" . $row["purposeName"]. "</td>
+					<td class='text-center'>" . $row["purposeCode"]. "</td>
+					<td class='text-center'>". $purposeState. "</td>
+					<td class='text-center'>
+						<a href='javascript:;' class='modify btn btn-xs btn-new-ok' onclick=\"modify(". $row["seq"]. ", '". $row["purposeName"]. "', '". $row["purposeCode"]. "',  '". $row["purposeState"]. "')\">수정</a>
+					</td>
+				</tr>";
+}
+
+
+
+$db->que = "SELECT * FROM purpose WHERE purposeDefault='N' AND purposeState IN ('Y','N') ORDER BY sort";
+$db->query();
+while($row = $db->getRow())
+{
+	
+	if($row["purposeState"] == "Y")
+	{
+		$purposeState = "사용함";
+	}
+	else if($row["purposeState"] == "N")
+	{
+		$purposeState = "사용안함";
+	}
+
+	$SubLIST .= "
+				<tr>
+					<td>" . $row["purposeName"]. "</td>
+					<td class='text-center'>" . $row["purposeCode"]. "</td>
+					<td class='text-center'>". $purposeState. "</td>
+					<td class='text-center'>
+						<button class='up btn btn-xs btn-new-ok' onclick=\"move('up', ". $row["seq"]. ")\"><i class='fa fa-caret-up'></i></button>
+						<button class='down btn btn-xs btn-new-ok' onclick=\"move('down', ". $row["seq"]. ")\"><i class='fa fa-caret-down'></i></button>
+						<a href='javascript:;' class='modify btn btn-xs btn-new-ok' onclick=\"modify(". $row["seq"]. ", '". $row["purposeName"]. "', '". $row["purposeCode"]. "',  '". $row["purposeState"]. "')\">수정</a>
+						<a href='javascript:;' class='remove btn btn-xs btn-new-cancle' onclick=\"del(". $row["seq"]. ")\" >삭제</a>
+					</td>
+				</tr>";
+}
+//costType
+$db->que = "SELECT * FROM costType ";
+$db->query();
+while($row = $db->getRow())
+{
+	$CostTypeLIST .= "
+				<tr>
+					<td>" . $row["name"]. "</td>
+					<td class='text-center'>" . $row["code"]. "</td>
+					<td class='text-center'>
+						<a href='javascript:;' class='modify btn btn-xs btn-new-ok' onclick=\"costTypeModify(". $row["seq"]. ", '". $row["name"]. "', '". $row["code"]. "')\">수정</a>
+						<a href='javascript:;' class='remove btn btn-xs btn-new-cancle' onclick=\"costTypeDelete(". $row["seq"]. ")\" >삭제</a>
+					</td>
+				</tr>";
+}
+
+
+if(empty($CostTypeLIST))
+{
+	$CostTypeLIST .= "<tr><td class='text-center' colspan='4'>사용자 정의 운행목적이 없습니다.</td></tr>";
+}
+
+
+
+
+
+// while($row = $db->getRow()){
+// 
+// 	echo $row["purposeName"];
+// }
+
+?>
+<script>
+	
+function save(){
+	if($("#purposeName").val().length < 1 ) {
+		alert("운행목적을 입력해 주십시오.");
+		$("#purposeName").focus();
+		return;
+	}
+	
+	if($('input:radio[name=purposeState]').is(':checked') == false) {
+		alert("사용여부를 선택해 주세요.");
+		return;
+	}
+	
+
+	submitForm.submit();
+}
+
+function saveCostType()
+{
+	if($("#costName").val().length < 1 ) 
+	{
+		alert("비용성격 명칭을 입력해 주십시오.");
+		$("#costName").focus();
+		return;
+	}
+	
+	if($("#costCode").val().length < 1 ) 
+	{
+		alert("비용성격 코드를 입력해 주십시오.");
+		$("#costCode").focus();
+		return;
+	}
+	costTypeSubmitForm.submit();
+}
+
+function add() {
+	init();
+
+	$("#myModalLabel").html("운행목적 추가");
+	$("#modal").modal();
+}
+
+function addCostType() {
+	init();
+
+	$("#myModalLabel").html("비용성격 추가");
+	$("#modalCostType").modal();
+}
+
+function modify(seq, purposeName, purposeCode, purposeState) {
+
+	$("#myModalLabel").html("운행목적 수정");
+	$("#mode").val("modify");
+	$("#seq").val(seq);
+	$("#purposeName").val(purposeName);
+	$("#purposeCode").val(purposeCode);
+	$('input:radio[name=purposeState]:input[value=' + purposeState + ']').prop("checked", true);
+	$("#modal").modal();
+}
+
+function costTypeModify(seq, costName, costCode,) 
+{
+
+	$("#myModalLabel2").html("비용성격 수정");
+	$("#mode2").val("modify");
+	$("#seq2").val(seq);
+	$("#costName").val(costName);
+	$("#costCode").val(costCode);
+	$("#modalCostType").modal();
+}
+
+/*
+function modify(seq){
+	$("#mode").val("modify");
+	$("#seq").val(seq);
+	$("#changeValue").val(value);
+	submitForm.submit();
+	
+}*/
+
+function del(seq){
+	if(confirm("정말 삭제 하시겠습니까?")) {
+		$("#seq").val(seq);
+		$("#mode").val("del");
+		submitForm.submit();
+	}
+}
+
+function costTypeDelete(seq)
+{
+	if(confirm("정말 삭제 하시겠습니까?")) {
+		$("#seq2").val(seq);
+		$("#mode2").val("del");
+		costTypeSubmitForm.submit();
+	}
+}
+
+
+function move(direction, seq) {
+	$("#seq").val(seq);
+	$("#mode").val(direction);
+	submitForm.submit();
+}
+
+function init() {
+	$("#seq").val("");
+	$("#mode").val("add");
+	$("#purposeName").val("");
+	$("#purposeCode").val("");
+	$("input:radio[name='purposeState']").removeAttr('checked'); 
+}
+
+</script>
+<div class='popup_title'>운행목적 편집</div>
+<div class="popup_content">
+	<div class="col-md-12">
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">기본운행목적</span>
+			</div>
+			<div class="cardCont">
+				<table class="tblBasic objCont table-hover" style="min-width:600px;">
+					<thead>
+					<tr>
+						<th class="text-center">운행목적</th>
+						<th class="text-center">코드</th>
+						<th class="text-center">사용여부</th>
+						<th class="text-center">관리 버튼</th>
+					</tr>
+					</thead>
+					<tbody>
+						<?=$LIST?>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+	
+	<div class="col-md-12">
+		<div class="card">
+			<div class="cardTitle">
+				<a href="javascript:add()" class="btn btn-sm btn-new-ok pull-right newObject"><i class="fa fa-window-maximize mr5"></i>운행목적 생성</a>
+				<span class="titCard">사용자 정의 운행목적</span>
+			</div>
+			<div class="cardCont">
+				<table class="tblBasic objCont table-hover" style="min-width:600px;">
+					<thead>
+					<tr>
+						<th class="text-center">운행목적</th>
+						<th class="text-center">코드</th>
+						<th class="text-center">사용여부</th>
+						<th class="text-center">관리 버튼</th>
+					</tr>
+					</thead>
+					<tbody>
+						<?=$SubLIST?>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+	
+	<div class="col-md-12">
+		<div class="card">
+			<div class="cardTitle">
+				<a href="javascript:addCostType()" class="btn btn-sm btn-new-ok pull-right newObject"><i class="fa fa-window-maximize mr5"></i>비용성격 생성</a>
+				<span class="titCard">비용성격</span>
+			</div>
+			<div class="cardCont">
+				<table class="tblBasic objCont table-hover" style="min-width:600px;">
+					<thead>
+					<tr>
+						<th class="text-center">이름</th>
+						<th class="text-center">코드</th>
+						<th class="text-center">관리 버튼</th>
+					</tr>
+					</thead>
+					<tbody>
+						<?=$CostTypeLIST?>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+
+
+
+
+	<!-- Modal -->
+	<form name="submitForm" method="post" action="post/purposePost.php" class="modal fade" id="modal" tabindex="-1" role="dialog" aria-labelledby="newDepLabel" aria-hidden="true">
+		<input type="hidden" name="mode" id="mode" value="add" >
+		<input type="hidden" name="seq" id="seq" value="" >
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header" style="border-top:4px solid #ffcc00">
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+					<h4 class="modal-title" id="myModalLabel">직책 생성</h4>
+				</div>
+				<div class="modal-body">
+					<div class="form-group">
+						<label class="control-label">운행목적 명칭</label>
+						<input type="text" name="purposeName" id="purposeName" value="" class="input" style="width:100%" placeholder="예) 거래처 방문" />
+					</div>
+					<div class="form-group">
+						<label class="control-label">운행목적 코드</label>
+						<input type="text" name="purposeCode" id="purposeCode" value="" class="input" style="width:100%" placeholder="예) A" />
+					</div>
+					<div class="form-group">
+						<label class="control-label">사용여부</label><br />
+						<label style="padding-left:0;"><input type="radio" name="purposeState" class="input_radio" value="Y"/> 사용</label>
+						<label><input type="radio" name="purposeState" class="input_radio" value="N"/> 사용안함</label>
+					</div>
+				</div>
+				<div class="modal-footer" style="background:#f9f9f9;">
+					<button type="button" class="btn btn-new-cancle" data-dismiss="modal">닫기</button>
+					<button type="button" class="btn btn-new-ok" onclick="save()">저장하기</button>
+				</div>
+			</div>
+		</div>
+	</form>
+
+	<!-- costType Modal -->
+	<form name="costTypeSubmitForm" method="post" action="post/costTypePost.php" class="modal fade" id="modalCostType" tabindex="-1" role="dialog" aria-labelledby="newDepLabel" aria-hidden="true">
+		<input type="hidden" name="mode2" id="mode2" value="add" >
+		<input type="hidden" name="seq2" id="seq2" value="" >
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header" style="border-top:4px solid #ffcc00">
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+					<h4 class="modal-title" id="myModalLabel2">직책 생성</h4>
+				</div>
+				<div class="modal-body">
+					<div class="form-group">
+						<label class="control-label">비용성격 명칭</label>
+						<input type="text" name="costName" id="costName" value="" class="input" style="width:100%" placeholder="예) 시내교통비" />
+					</div>
+					<div class="form-group">
+						<label class="control-label">비용성격 코드</label>
+						<input type="text" name="costCode" id="costCode" value="" class="input" style="width:100%" placeholder="예) A" />
+					</div>
+				</div>
+				<div class="modal-footer" style="background:#f9f9f9;">
+					<button type="button" class="btn btn-new-cancle" data-dismiss="modal">닫기</button>
+					<button type="button" class="btn btn-new-ok" onclick="saveCostType()">저장하기</button>
+				</div>
+			</div>
+		</div>
+	</form>
+
+</div>
+<? include "inc_html/popupFooter.html"; ?>

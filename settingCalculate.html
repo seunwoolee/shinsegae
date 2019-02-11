@@ -1,0 +1,243 @@
+<?
+include "inc_html/popupHeader.html";
+include "inc/drivingLog.inc.php"; 
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$companySeq			= $COMPANY_SEQ;
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Code
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+
+$db->que = "SELECT * FROM calculateOilSetting ";
+$db->query();
+$setting = $db->getRow();
+
+if($setting["gasolineUp1800Cost"] < 1)	$setting["gasolineUp1800Cost"] = 0;
+if($setting["gasolineDown1800Cost"] < 1)	$setting["gasolineDown1800Cost"] = 0;
+if($setting["dieselCost"] < 1)		$setting["dieselCost"] = 0;
+if($setting["gasCost"] < 1)			$setting["gasCost"] = 0;
+if($setting["hybbridGasoilneCost"] < 1)			$setting["hybbridGasoilneCost"] = 0;
+if($setting["hybbridLpiCost"] < 1)			$setting["hybbridLpiCost"] = 0;
+
+?>
+
+<script>
+function save() {
+	var type = $(':radio[name="type"]:checked').val();
+	if(type == "Basic") {
+		if($("#basicCost").val().length < 1) {
+			alert("1Km당 유류비를 입력해 주세요.");
+			$("#basicCost").focus();
+			return;
+		}
+	} else if(type == "Mileage") {
+
+		if($("#defaultMileage").val().length < 1) {
+			alert("기본연비를 입력해 주세요.");
+			$("#defaultMileage").focus();
+			return;
+		}
+
+		if($("#gasolineDown1800Cost").val().length < 1) {
+			alert("휘발유값을 입력해 주세요.");
+			$("#gasolineDown1800Cost").focus();
+			return;
+		}
+	}
+
+	submitForm.submit();
+	window.opener.document.location.reload();
+	//window.close(); 
+}
+
+
+$(document).ready(function(){
+	$(':radio[name="type"]').on('change', function() {
+		var type = $(this).val();
+		if(type == "Basic") {
+			$(".typeParent").removeClass("Mileage");
+			$(".typeParent").addClass("Basic");
+		} else if(type == "Mileage") {
+			$(".typeParent").removeClass("Basic");
+			$(".typeParent").addClass("Mileage");
+		}
+	});
+
+	$(':radio[name="bonusCost"]').on('change', function() {
+		var bonusCost = $(this).val();
+
+		if(bonusCost == "Y") {
+			$("#bonusCost").removeClass("bonusCost_N");
+			$("#bonusCost").addClass("bonusCost_Y");
+		} else if(bonusCost == "N") {
+			$("#bonusCost").removeClass("bonusCost_Y");
+			$("#bonusCost").addClass("bonusCost_N");
+		}
+	});
+});
+
+</script>
+<style>
+body { background:#f3f3f3; overflow-x:hidden;}
+.Basic .Mileage {display:none;}
+.Mileage .Basic {display:none;}
+.bonusCost_N .setting {display:none;}
+</style>
+
+<form name="submitForm" method="post" action="post/settingCalculatePost.php" autocomplete="off" >
+
+<div class="popup_title">정산 설정</div>
+<div class="row popup_content">
+	<div class="col-md-12">
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">유류비 정산 설정</span>
+				<span class="txtCard">
+					※ 사용자 정보에 연비가 설정되지 않은 경우 기본연비가 적용 됩니다.
+				</span>
+			</div>
+			<div class="cardCont">
+				<table class='tbl_none typeParent <?=$setting["type"]?>'>
+					<colgroup>
+						<col width="160" />
+						<col width="" />
+					</colgroup>
+
+					<tr>
+						<th>정산 방식</th>
+						<td>
+							<label><input type="radio" name="type" value="Basic" <?=LIB::isChecked("Basic", $setting["type"])?> /> 운행거리</label>
+							<label><input type="radio" name="type" value="Mileage" <?=LIB::isChecked("Mileage", $setting["type"])?> /> 운행거리+연비</label>
+						</td>
+					</tr>
+
+					<tr class="Basic">
+						<th>1Km당 유류비</th>
+						<td><input type="number" name="basicCost" id="basicCost" value="<?=$setting['basicCost']?>" class="input" /> 원</td>
+					</tr>
+					<tr class="Mileage">
+						<th>기본연비</th>
+						<td>
+							<input type="number" name="defaultMileage" id="defaultMileage" value="<?=$setting['defaultMileage']?>" class="input" /> Km/L
+						</td>
+					</tr>
+				</table>
+			</div>
+		</div>
+
+		<div class="typeParent <?=$setting["type"]?>">
+			<div class="card Mileage">
+				<div class="cardTitle">
+					<span class="titCard">유가 설정</span>
+				</div>
+				<div class="cardCont">
+					<table class="tbl_none">
+						<colgroup>
+							<col width="160" />
+							<col width="" />
+						</colgroup>
+						<tr>
+							<th>휘발유 1800미만 (필수)</th>
+							<td><input type="number" name="gasolineDown1800Cost" id="gasolineDown1800Cost" value="<?=$setting['gasolineDown1800Cost']?>" class="input" /> 원/L</td>
+						</tr>
+						<tr>
+							<th>휘발유 1800이상</th>
+							<td><input type="number" name="gasolineUp1800Cost" id="gasolineUp1800Cost" value="<?=$setting['gasolineUp1800Cost']?>" class="input" /> 원/L</td>
+						</tr>
+						<tr>
+							<th>경유</th>
+							<td><input type="number" name="dieselCost" id="dieselCost" value="<?=$setting['dieselCost']?>" class="input" /> 원/L</td>
+						</tr>
+						<tr>
+							<th>LPG</th>
+							<td><input type="number" name="gasCost" id="gasCost" value="<?=$setting['gasCost']?>" class="input" /> 원/L</td>
+						</tr>
+
+						<tr>
+							<th>하이브리드_휘발유</th>
+							<td><input type="number" name="hybbridGasoilneCost" id="hybbridGasoilneCost" value="<?=$setting['hybbridGasoilneCost']?>" class="input" /> 원/L</td>
+						</tr>
+						<tr>
+							<th>하이브리드_LPI</th>
+							<td><input type="number" name="hybbridLpiCost" id="hybbridLpiCost" value="<?=$setting['hybbridLpiCost']?>" class="input" /> 원/L</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+		</div>
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">정산 정보</span>
+				<span class="txtCard">
+					※ 사용자 정보에 연비가 설정되지 않은 경우 기본연비가 적용 됩니다.
+				</span>
+			</div>
+			<div class="cardCont">
+				<table id="bonusCost" class="tbl_none bonusCost_<?=$setting["bonusCost"]?>">
+					<colgroup>
+						<col width="160" />
+						<col width="" />
+					</colgroup>
+					<tr>
+						<th>지급 여부</th>
+						<td>
+							<label><input type="radio" name="bonusCost" value="N" <?=LIB::isChecked("N", $setting["bonusCost"])?> /> 지급안함</label>
+							<label><input type="radio" name="bonusCost" value="Y" <?=LIB::isChecked("Y", $setting["bonusCost"])?> /> 지급함</label>
+						</td>
+					</tr>
+
+					<tr class="setting">
+						<th>지급조건</th>
+						<td>
+							평균속도
+							&nbsp;
+							<select id="bonusSection" name="bonusSection" class="btn btn-default">
+								<option value="10" <?=LIB::isSelected("10", $setting["bonusSection"])?>>10 Km/H</option>
+								<option value="20" <?=LIB::isSelected("20", $setting["bonusSection"])?>>20 Km/H</option>
+								<option value="30" <?=LIB::isSelected("30", $setting["bonusSection"])?>>30 Km/H</option>
+								<option value="40" <?=LIB::isSelected("40", $setting["bonusSection"])?>>40 Km/H</option>
+								<option value="50" <?=LIB::isSelected("50", $setting["bonusSection"])?>>50 Km/H</option>
+								<option value="60" <?=LIB::isSelected("60", $setting["bonusSection"])?>>60 Km/H</option>
+								<option value="70" <?=LIB::isSelected("70", $setting["bonusSection"])?>>70 Km/H</option>
+								<option value="80" <?=LIB::isSelected("80", $setting["bonusSection"])?>>80 Km/H</option>
+								<option value="90" <?=LIB::isSelected("90", $setting["bonusSection"])?>>90 Km/H</option>
+								<option value="100" <?=LIB::isSelected("100", $setting["bonusSection"])?>>100 Km/H</option>
+							</select>
+							&nbsp;
+							미만 구간
+							&nbsp;
+							<select id="bonusPercent" name="bonusPercent" class="btn btn-default">
+								<option value="10" <?=LIB::isSelected("10", $setting["bonusPercent"])?>>10%</option>
+								<option value="20" <?=LIB::isSelected("20", $setting["bonusPercent"])?>>20%</option>
+								<option value="30" <?=LIB::isSelected("30", $setting["bonusPercent"])?>>30%</option>
+								<option value="40" <?=LIB::isSelected("40", $setting["bonusPercent"])?>>40%</option>
+								<option value="50" <?=LIB::isSelected("50", $setting["bonusPercent"])?>>50%</option>
+								<option value="60" <?=LIB::isSelected("60", $setting["bonusPercent"])?>>60%</option>
+								<option value="70" <?=LIB::isSelected("70", $setting["bonusPercent"])?>>70%</option>
+								<option value="80" <?=LIB::isSelected("80", $setting["bonusPercent"])?>>80%</option>
+								<option value="90" <?=LIB::isSelected("90", $setting["bonusPercent"])?>>90%</option>
+								<option value="100" <?=LIB::isSelected("100", $setting["bonusPercent"])?>>100%</option>
+							</select>
+							&nbsp;
+							추가 지급
+						</td>
+					</tr>
+				</table>
+			</div>
+		</div>
+	</div>
+</div>
+</form>
+
+<div class="center mb30"><input type="button" value="확 인" onclick="save()" class="btn btn-lg btn-new-oil" /></div>
+
+<? include "inc_html/popupFooter.html"; ?>

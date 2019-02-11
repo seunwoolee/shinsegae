@@ -1,0 +1,55 @@
+	</div>
+</article>
+<div class="copy">
+<? 
+	include "inc_html/copy.html";
+?>	
+</div>
+<script>
+var idleSeconds = 900;
+$(function () 
+{
+
+	var idleTimer;
+	function resetTimer()
+	{
+		clearTimeout(idleTimer);
+		idleTimer = setTimeout(whenUserIdle,idleSeconds*1000);
+	}
+	$(document.body).bind('mousemove keydown click',resetTimer); //space separated events list that we want to monitor
+	resetTimer(); // Start    timer when the page loads
+
+	$('[data-toggle="tooltip"]').tooltip();
+})
+
+function whenUserIdle()
+{
+		$.ajax
+	({
+		type : "GET"
+		,url : "ajax/security.php"
+		,async : false		// 동기화처리
+		,dataType : "json"	// 응답의 결과로 반환되는 데이터의 종류
+		,success : function(data)
+		{
+				alert(data.message);
+				document.location.href='./index.html?logout=true';
+		}
+		,error: function( xhr, status ) {
+		}
+		,complete : function(){
+			
+		}	// complete Event 호출시 사용
+	});
+	
+
+}
+</script>
+
+<script>
+$(function () {
+  $('[data-toggle="tooltip"]').tooltip();
+})
+</script>
+</body>
+</html>

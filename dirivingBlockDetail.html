@@ -1,0 +1,49 @@
+<?
+include "inc_html/popupHeader.html";
+?>
+
+<div class='popup_title'>운행 반려 사유</div>
+
+<div class="popup_content">
+	<form name="submitForm" method="post" action="post/userPost.php">
+		<div class="col-md-12">
+			<div class="card">
+				<div class="cardTitle">
+					<span class="titCard">반려 사유</span>
+				</div>
+				<div class="cardCont">
+					<table class="tbl_none">
+						<colgroup>
+							<col width="160" />
+							<col width="" />
+						</colgroup>
+						<tr>
+							<th>반려처리자</th>
+							<td>
+								<span class='label label-warning'>승인권자</span>
+							</td>
+						</tr>
+						<tr>
+							<th>반려 날짜</th>
+							<td>
+								반려 날짜
+							</td>
+						</tr>
+						<tr>
+							<th>반려 사유</th>
+							<td>
+								부서 변경 미처리
+							</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+		</div>
+	</form>
+
+	<div class="center mt20">
+		<input type="button" value="닫기" onclick="window.close()" class="btn btn-lg btn-new-cancle" />
+	</div>
+</div>
+
+<? include "inc_html/popupFooter.html"; ?>

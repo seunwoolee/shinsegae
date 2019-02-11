@@ -1,0 +1,239 @@
+<? 
+include "inc_html/header.html";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$companySeq			= $COMPANY_SEQ;
+$year						= $_GET["year"];
+$uid						= $_GET["uid"];
+
+
+
+if(empty($year))
+{
+	$year = date("Y");
+}
+
+$beginDate = $year. "-01-01";
+$endDate = $year. "-12-31";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Code
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+
+// 차량
+//-----------------------------------------------------------------------------------
+$db->que = "SELECT u.uid, u.name, u.carModel, u.carNumber, count(r.seq) AS receiptCount FROM user AS u LEFT OUTER JOIN ";
+$db->que .= " (SELECT * FROM receiptView WHERE companySeq=". $companySeq. " AND state='Y' AND receiptAccountCodeDetailType='Car' AND useDate >= '". $beginDate. "' AND useDate <= '". $endDate. "') AS r ON u.uid=r.userUid ";
+$db->que .= " WHERE u.companySeq=". $companySeq. " AND u.enabled='Y' GROUP BY u.uid ORDER BY u.name ASC, u.carModel ASC, u.carNumber ASC";
+$db->query();
+while($row = $db->getRow())
+{
+	$car = trim($row["carModel"]. " ". $row["carNumber"]);
+	if(empty($car) == false)
+	{
+		$carUser = $row["name"]. " > ". $car;
+	}
+	else
+	{
+		$carUser = $row["name"];
+	}
+
+
+	if($row["uid"] == $uid)
+	{
+		$active = "active";
+		$carFullName = $carUser;
+	}
+	else
+	{
+		$active = "";
+	}
+
+	$CAR_LIST .= '<li class="'. $active. '"><a href="javascript:chooseCar(\''. $row["uid"]. '\');"><i class="fa fa-car mr5"></i>'. $carUser. '<small class="label pull-right bg-yellow">'. $row["receiptCount"]. '건</small></a></li>';
+}
+
+
+$companyAmount = 0;
+$personalAmount = 0;
+$receiptCount = 0;
+if(empty($uid) == false)
+{
+	$month = "";
+	$monthTotalAmount = 0;
+	$db->que = "SELECT * FROM receiptView WHERE userUid='". $uid. "' AND state='Y' AND useDate >= '". $beginDate. "' AND useDate <= '". $endDate. "' ORDER BY useDate ASC";
+	$db->query();
+	$receiptCount = $db->affected_rows();
+	while($row = $db->getRow())
+	{
+		if($row["card"] == "Personal")
+		{
+			$personalAmount += $row["amount"];
+		}
+		else if($row["card"] == "Company")
+		{
+			$companyAmount += $row["amount"];
+		}
+		
+		$thisMonth = date("m", strToTime($row["useDate"]));
+		if($month != "" && $month != $thisMonth)
+		{
+			$RECEIPT_LIST .= '
+					<tr height="5" class="noboder"><td colspan="7"><div class="dotted"></div></td></tr>
+					<tr height="30" class="monthTotal">
+						<td align="left" colspan="6">'. ((int) $month). ' 월 합계</td>
+						<td align="right">'. number_format($monthTotalAmount). '원</td>
+					</tr>';
+			$monthTotalAmount = 0;
+		}
+		
+		$month = $thisMonth;
+		$monthTotalAmount += $row["amount"];
+
+
+		$RECEIPT_LIST .= '<tr height="30" class="noboder">
+						<td align="left">'. $row["useDate"]. '</td>
+						<td align="left">'. $row["departmentName"]. '</td>
+						<td align="left">'. $row["name"]. '</td>
+						<td align="left">'. $row["receiptAccountCodeCode"]. '</td>
+						<td align="left">'. $row["receiptAccountCodeName"]. '</td>
+						<td align="left">'. $row["receiptAccountCodeDetailName"]. '</td>
+						<td align="right">'. number_format($row["amount"]). '원</td>
+					</tr>';
+	}
+
+
+	if($monthTotalAmount > 0)
+	{
+		$RECEIPT_LIST .= '
+					<tr height="5" class="noboder"><td colspan="7"><div class="dotted"></div></td></tr>
+					<tr height="30" class="monthTotal">
+						<td align="left" colspan="6">'. ((int) $month). ' 월 합계</td>
+						<td align="right">'. number_format($monthTotalAmount). '원</td>
+					</tr>';
+	}
+
+	$listTitle = "<span style='color:#ffa800; vertical-align:top;'>". $carFullName. "</span> ". $year. "년 지출 현황";
+}
+else
+{
+	$listTitle = "지출 현황";
+	$RECEIPT_LIST = '<tr height="50" class="noboder"><td align="center" colspan="7">좌측 목록에서 차량을 선택해 주세요.</td></tr>';
+}
+
+
+if(empty($RECEIPT_LIST))
+{
+	$RECEIPT_LIST = '<tr height="50" class="noboder"><td align="center" colspan="7">'. $year. '년도 지출 내역이 없습니다.</td></tr>';
+}
+
+					
+?>
+
+
+<script>
+function revisionYear(direction) {
+	var year = parseInt($("#year").attr("data"), 10);
+	if(direction == "prev") {
+		year = year - 1;
+	} else if(direction == "next") {
+		year = year + 1;
+	}
+
+	window.location.href = "receiptCar.html?year=" + year + "&carSeq=<?=$carSeq?>";
+}
+
+function chooseCar(uid) {
+	window.location.href = "receiptCar.html?year=<?=$year?>&uid=" + uid;
+}
+
+function docPrint() {
+	popup("receiptPrint.html?year=<?=$year?>&uid=<?=$uid?>", 900, 600);
+}
+
+function init() {
+	window.location.href = "receiptCar.html";
+}
+
+$(document).ready(function(){
+	$("#year").on("change", function(){
+		var year = parseInt($("#year").val());
+
+		window.location.href = "receiptCar.html?year=" + year + "&carSeq=<?=$carSeq?>";
+	});
+});
+
+</script>
+<style>
+tr.noboder td {border:0;}
+tr.monthTotal td {border:0; padding-bottom:30px; padding-top:5px;}
+.tbl_none td {padding:0px 5px;}
+.tbl_none th {padding:10px 5px;}
+</style>
+
+
+<div class="row">
+	<div class="col-md-4">
+		<div class="card">
+			<div class="cardTitle"><span class="titCard"><?=$year?>년 운행 차량</span></div>
+			<div class="cardSearch">
+				<select id="year" name="year" class="input" style="padding:6px 10px; font-size:12px;">
+					<?=LIB::selectBoxYear($year)?>
+				</select>
+				<button type="button" class="btn btn-sm btn-new-cancle" onclick="init()"><i class="fa fa-rotate-left mr5"></i>올해로</button>
+			</div>
+			<div class="cardCont">
+				<!-- <h4>운행 차량<small class="label pull-right bg-blue">지출건수</small></h4> -->
+				<ul class="nav navCar">
+					<?=$CAR_LIST?>
+				</ul>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-8">
+		<div class="card">
+			<div class="cardTitle"><span class="titCard"><?=$listTitle?></span></div>
+			<div class="cardCont">
+				<div class="mb10">
+					<a href="javascript:;" class="btn dropdown-toggle btn-sm btn-new-ok <? if($receiptCount < 1) echo 'disabled'; ?>" onclick="docPrint()">인쇄</a>
+				</div>
+				<div class="table-responsive">
+					<table class="tbl_none" style="min-width:700px;">
+						<colgroup>
+							<col width="" />
+							<col width="" />
+							<col width="" />
+						</colgroup>
+						<tr>
+							<th class="center">법인 지출</th>
+							<td class="right"><?=number_format($companyAmount)?>원</td>
+							<th class="center">개인 지출</th>
+							<td class="right"><?=number_format($personalAmount)?>원</td>
+							<th class="center">총 지출</th>
+							<td class="right" colspan="2"><?=number_format($companyAmount + $personalAmount)?>원</td>
+						</tr>
+						<tr>
+							<th class="left">일자</th>
+							<th class="left">부서</th>
+							<th class="left">성명</th>
+							<th class="left">과목코드</th>
+							<th class="left">과목명</th>
+							<th class="left">세목</th>
+							<th class="right">금액</th>
+						</tr>
+						<?=$RECEIPT_LIST?>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+// 영수증 상세보기
+function popupReceipt(seq){
+	popup("receiptDetail.html?seq=" + seq, 850, 600);
+}
+</script>
+<? include "inc_html/footer.html"; ?>

@@ -1,0 +1,224 @@
+<?
+include "inc_html/popupHeader.html";
+include "inc/department.inc.php";
+include "inc/user.inc.php";
+include "inc/drivingLog.inc.php";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$seq					= $_GET["seq"];
+$popupTitle				= "";
+$upperDep				= $_GET["upperDep"];
+$lowerDep				= $_GET["lowerDep"];
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+
+$department = new Department($db);
+$department->loadUpperData();
+
+
+if($seq > 0)
+{
+	$enabledText .= "(". $row["deviceChangeCount"]. ")";
+	$db->que = "SELECT * FROM user WHERE seq=". $seq;
+	$db->query();
+	$user = $db->getRow();
+	$readonly = "readonly";
+	$passwordGuid = "비밀번호 변경이 필요할때 입력해 주세요.";
+	$popupTitle	 = "수정";
+
+	if($user["oilMileage"] < 1)
+	{
+		$user["oilMileage"] = "";
+	}
+
+}
+else
+{
+	$readonly = "";
+	$passwordGuid = "비밀번호를 입력해 주세요";
+	$popupTitle	 = "추가";
+}
+
+if($upperDep > 0 )
+{
+	$where .= " AND de.parentSeq=". $upperDep;
+	//하위부서 DATA GET
+	$department->loadLowerData($upperDep);
+	//$department->createTreeLower;
+}
+
+if($lowerDep > 0 )
+{
+	$where .= " AND de.seq =". $lowerDep;
+}
+?>
+
+<script>
+
+function save()
+{
+	if($("#employeeNumber").val().length < 1) 
+	{
+		alert("사번을 입력해 주세요.");
+		$("#employeeNumber").focus();
+		return false;
+	}
+	
+	/* TODO 삭제할거
+	if($("#seq").val().length < 1) 
+	{
+		if($("#p_assword").val().length < 1) 
+		{
+			alert("비밀번호는 입력해 주세요 (4자 이상)");
+			$("#p_assword").focus();
+			return false;
+		}
+	} 
+	else 
+	{
+		if($("#p_assword").val().length > 0 && $("#p_assword").val().length < 4) 
+		{
+			alert("비밀번호는 4자이상 입력해 주세요.");
+			$("#p_assword").focus();
+			return false;
+		}
+	}
+	*/
+	
+	if($("#upperDep").val() == 0) {
+		alert("상위부서를 입력해 주세요.");
+		$("#upperDep").focus();
+		return false;
+	}
+
+	if($("#upperDep").val() == 1) {
+		alert("해당부서로 수정할 수 없습니다.");
+		$("#upperDep").focus();
+		return false;
+	}
+	
+	if($("#lowerDep").val() == 0) {
+		alert("하위부서를 입력해 주세요.");
+		$("#lowerDep").focus();
+		return false;
+	}
+	
+	
+	if($("#name").val().length < 1) {
+		alert("성명 입력해 주세요.");
+		$("#name").focus();
+		return false;
+	}
+
+	$("#mode").val("modify");
+	submitForm.submit();
+}
+
+function removeUser() {
+	if(confirm("삭제할 경우 복구가 불가능 합니다. 그래도 삭제 하시겠습니까?")) {
+		$("#mode").val("remove");
+		submitForm.submit();
+	}
+}
+
+function search(seq)
+{
+	var upperDep = $("#upperDep").val();
+	var lowerDep = $("#lowerDep").val();
+	window.location.href = "userWrite.html?seq="+ seq +"&upperDep=" + upperDep + "&lowerDep=" + lowerDep;
+}
+
+</script>
+
+<div class='popup_title'>사용자 <?=$popupTitle?></div>
+
+<div class="popup_content">
+	<form name="submitForm" method="post" action="post/userPost.php">
+	<input type="hidden" name="seq" id="seq" value="<?=$seq?>" />
+	<input type="hidden" name="mode" id="mode" value="" />
+	<div class="col-md-12">
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">사용자 설정</span>
+			</div>
+			<div class="cardCont">
+				<table class="tbl_none">
+					<colgroup>
+						<col width="160" />
+						<col width="" />
+					</colgroup>
+					<tr class="border_top">
+						<th>상위부서(레벨1) 선택</th>
+						<td>
+							<select id="upperDep" name="upperDep" class="form-control" onchange="search(<?=$seq?>)">
+								<option value="0">전체 상위 부서</option>
+								<?=$department->getTreeSelectBoxOptions($upperDep)?>
+							</select>
+						</td>
+					</tr>
+					<tr>
+						<th>소속부서(레벨2) 선택</th>
+						<td>
+							<select id="lowerDep" name="lowerDep" class="form-control" onchange="search(<?=$seq?>)">
+								<option value="0">소속 하위 부서</option>
+								<?=$department->getLowerTreeSelectBoxOptions($lowerDep)?>
+							</select>
+						</td>
+					</tr>
+					<tr>
+						<th>성명</th>
+						<td>
+							<input type="text" name="name" id="name" class="form-control" value="<?=$user['name']?>" />
+						</td>
+					</tr>
+					<tr>
+						<th>사번</th>
+						<td>
+							<input readonly type="text" name="employeeNumber" id="employeeNumber" class="form-control" value="<?=$user['employeeNumber']?>" />
+						</td>
+					</tr>
+					<!--
+					<tr>
+						<th>비밀번호</th>
+						<td>
+							<input type="password" name="p_assword" id="p_assword" class="form-control"  value=""  placeholder="<?=$passwordGuid?>" />
+						</td>
+					</tr>
+					
+					<tr>
+					-->
+					<tr>
+						<th>상태</th>
+						<td>
+							<select id="enabled" name="enabled" class="form-control">
+								<option value="Y" <?=LIB::isSelected($user["enabled"], "Y")?>><?=User::getEnabled("Y")?></option>
+								<option value="N" <?=LIB::isSelected($user["enabled"], "N")?>><?=User::getEnabled("N")?></option>
+								<option value="C" <?=LIB::isSelected($user["enabled"], "C")?>><?=User::getEnabled("C")?></option>
+								<option value="B" <?=LIB::isSelected($user["enabled"], "B")?>><?=User::getEnabled("B")?></option>
+							</select>
+						</td>
+					</tr>
+					<tr>
+						<th>기기변경 횟수</th>
+						<td><?=$user['deviceChangeCount']?> 회</td>
+					</tr>
+				</table>
+			</div>
+		</div>
+		
+	</form>
+
+	<div class="center mt20">
+		<input type="button" value="수정" onclick="save()" class="btn btn-lg btn-new-ok" />
+		<? if($seq > 0) { ?><input type="button" value="삭제" onclick="removeUser()" class="btn btn-lg btn-new-cancle" /><? } ?>
+		<input type="button" value="닫기" onclick="window.close()" class="btn btn-lg btn-new-cancle" />
+	</div>
+</div>
+
+<? include "inc_html/popupFooter.html"; ?>

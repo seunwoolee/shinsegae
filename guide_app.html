@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko" class="">
+<head>
+<meta charset="utf-8" />
+<meta name="Referrer" content="origin" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+<meta property="og:title" content="카택스 앱 사용 가이드" />
+<meta property="og:description" content="카택스 차량운행일지 사용 가이드(메뉴열기, 차량등록, 차량선택, 운행시작, 운행종료)" />
+<meta property="description" content="카택스 차량운행일지 사용 가이드(메뉴열기, 차량등록, 차량선택, 운행시작, 운행종료)" />
+
+<title>카택스 앱 사용 가이드</title>
+
+<link rel="stylesheet" href="css/guide.css" />
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+<script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.8/jquery-ui.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.3/jquery.easing.min.js"></script>
+<script src="js/guide.js"></script>
+<?php
+function MobileCheck() {
+	//$mobilechk = '/(iPod|iPhone|Android|BlackBerry|SymbianOS|SCH-M\d+|Opera Mini|Windows CE|Nokia|SonyEricsson|webOS|PalmOS)/i';
+	$ioschk = '/(iPod|iPhone|iPad)/i';
+	if(preg_match($ioschk, $_SERVER['HTTP_USER_AGENT'])) {
+		return "_ios";
+	} else {
+		return "";
+	}
+}
+?>
+</head>
+<body>
+<!--  oncontextmenu="return false" ondragstart="return false" onselectstart="return false"  -->
+<div id="wrap">
+	<div class="animate">
+		<div class="mobile">
+			<div class="appMessage motion">
+				<img src="images/guide/img_message_auto.png" alt="모바일폼" class="left" />
+				<img src="images/guide/img_message_direction.png" alt="모바일폼" class="right" />
+			</div>
+			<div class="logMessage motion">
+				<img src="images/guide/img_message_tax.png" alt="모바일폼" class="right" />
+			</div>
+			<div class="txtVisual"></div>
+			<div class="mobileImg">
+				<div class="visual">
+					<div class="scrollMobile motion">
+						<div class="linkSize"></div>
+						<div class="logDown">
+							<img src="images/guide/img_log_down.png" alt="모바일폼" class="motion" />
+						</div>
+						<div class="driveDetail">
+							<img src="images/guide/img_drive_detail.png" alt="모바일폼" class="motion" />
+						</div>
+						<div class="bluetooth">
+							<div class="focus"></div>
+							<img src="images/guide/img_set_bluetooth.png" alt="모바일폼" class="motion" />
+						</div>
+						<div class="btnDrive1">
+							<div class="pointer motion"></div>
+							<img src="images/guide/btn_animate.png" alt="모바일폼" class="btnAnimate" />
+							<img src="images/guide/btn_drive_start.png" alt="모바일폼" class="mobileBtn" />
+						</div>
+						<div class="btnDrive2">
+							<div class="pointer1 motion"></div>
+							<div class="pointer2 motion"></div>
+							<img src="images/guide/btn_drive_stop.png" alt="모바일폼" class="mobileBtn" />
+						</div>
+						<div class="addCar">
+							<div class="carChoose motion">
+								<div class="pointer motion"></div>
+								<img src="images/guide/ico_check_off.png" alt="모바일폼" class="img1" />
+								<img src="images/guide/ico_check_off.png" alt="모바일폼" class="img2" />
+								<img src="images/guide/ico_check_off.png" alt="모바일폼" class="img3" />
+							</div>
+							<img src="images/guide/ico_car_setting.png" alt="모바일폼" class="imageMobile" />
+						</div>
+						<div class="menu motion">
+							<div class="menuAnimation1 motion">
+								<div class="pointer motion"></div>
+							</div>
+							<img src="images/guide/img_menu1.png" alt="모바일폼" class="slideMenu motion" />
+						</div>
+						<div class="popup motion">
+							<div class="pointer"></div>
+							<img src="images/guide/img_pop.png" alt="모바일폼" class="motion" />
+						</div>
+						<div class="menuIcon">
+							<div class="pointer motion"></div>
+							<img src="images/guide/ico_menu.png" alt="모바일폼" class="imageMobile" />
+							<span></span>
+						</div>
+						<div class="numDrive"></div>
+						<div class="Driving">
+							<dl>
+								<dt>
+									운행시간
+								</dt>
+								<dt>
+									운행거리
+								</dt>
+								<dd>
+									00:00:05
+								</dd>
+								<dd>
+									1.0<em>km</em>
+								</dd>
+							</dl>
+						</div>
+						<img src="images/guide/bg_app_main1.png" width="100%" alt="모바일폼" class="imageMobile baseMobile" />
+					</div>
+				</div>
+				<div class="appList motion">
+					<img src="images/guide/img_app_list.png" alt="모바일폼" class="imageMobile" />
+				</div>
+				<img src="images/guide/img_mobile<? echo MobileCheck(); ?>.png" alt="모바일폼" class="imageMobile" />
+				<img src="images/guide/img_pc_admin.png" alt="모바일폼" class="imagePc" />
+			</div>
+		</div>
+		<div class="control">
+			<span class="spot">
+				<a href="javascript:;" class="on"></a>
+				<a href="javascript:;" class=""></a>
+				<a href="javascript:;" class=""></a>
+				<a href="javascript:;" class=""></a>
+				<a href="javascript:;" class=""></a>
+				<a href="javascript:;" class=""></a>
+				<a href="javascript:;" class=""></a>
+				<a href="javascript:;" class=""></a>
+				<a href="javascript:;" class=""></a>
+			</span>
+			<a href="javascript:;" class="btnSkip"><img src="images/guide/btn_skip.png" alt="스킵하기" /></a>
+			<a href="javascript:;" class="btn"></a>
+			<!--
+			<strong class="careful">
+				<span>가이드</span>는 좌측 메뉴 > <span>도움말</span>에서 다시 확인이 가능합니다.
+			</strong>
+			-->
+		</div>
+	</div>
+</div>
+</body>
+<script>
+$(document).ready(function(){
+	var startIndex = 0;		// 최초 index 설정
+
+	// 드레그 모션
+	var firstX;				// 모바일 터치한 x좌표
+	var is_move;			// 터치 여부
+	arrowMotion = 0;		// 이동거리
+	mouseBound = 30;		// 최소 드래그 제어
+	
+	$(".mobile").on("mousedown", function(e){
+		firstX = e.pageX;
+		is_move = true;
+	});
+	
+	$(".mobile").on("mousemove", function(e){
+		if(	is_move != true ) {
+			return false;
+		}
+		arrowMotion = e.pageX-firstX;
+	});
+	
+	$(".mobile").on("mouseup", function(e){
+		if(Math.abs(arrowMotion) < mouseBound){
+			return false;
+		}
+		if(arrowMotion<0){
+			nextView();
+		} else {
+			prevView();
+		}
+		is_move = false;
+	});
+
+	$(".mobile").on("touchstart", function(event){
+		event.preventDefault();
+		var e = event.originalEvent;
+		firstX = e.targetTouches[0].pageX;
+		is_move = true;
+	});
+	
+	$(".mobile").on("touchmove", function(event){
+		if(	is_move != true ) { return false;}
+		event.preventDefault();
+		var e = event.originalEvent;
+		arrowMotion = e.targetTouches[0].pageX-firstX;
+	});
+	$(".mobile").on("touchend", function(e){
+		if(Math.abs(arrowMotion) < mouseBound){
+			return false;
+		}
+		if(arrowMotion<0){
+			nextView();
+		} else {
+			prevView();
+		}
+		is_move = false;
+	});
+	// 최초 실행 함수
+	mobileMotion(startIndex);
+})
+</script>
+</html>

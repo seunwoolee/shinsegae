@@ -1,0 +1,153 @@
+<?
+include "inc_html/popupHeader.html"; 
+include "inc/receipt.inc.php";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$companySeq			= $COMPANY_SEQ;
+$seq						= $_GET["seq"];
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+
+
+$db->que = "SELECt * FROM receiptView WHERE seq=". $seq;
+$db->query();
+$row = $db->getRow();
+
+if($row["carSeq"] > 0)
+{
+	$db->que = "SELECt * FROM car WHERE seq=". $row["carSeq"];
+	$db->query();
+	$car = $db->getRow();
+}
+?>
+<style>
+
+</style>
+<!-- 영수증 상세 내용 -->
+<div id="popupReceipt" oncontextmenu="return false" ondragstart="return false" onselectstart="return false">
+	<div class="receiptInfo">
+		<span class="receiptToggle">상세정보<a href="javascript:;">닫기</a></span>
+		<!-- 영수증 상세 데이터 -->
+		<dl>
+			<dt>날짜</dt>
+			<dd><?=date("Y.m.d", strToTime($row["useDate"]))?></dd>
+			<dt>부서</dt>
+			<dd><?=$row["departmentName"]?></dd>
+			<dt>성명</dt>
+			<dd><?=$row["name"]?></dd>
+			<dt>결제수단</dt>
+			<dd><?=Receipt::getCardText($row["card"])?>카드</dd>
+			<dt>계정과목</dt>
+			<dd>[<?=$row["receiptAccountCodeCode"]?>]<?=$row["receiptAccountCodeName"]?>-<?=$row["receiptAccountCodeDetailName"]?></dd>
+			
+			<? if($row["carSeq"] > 0) { ?>
+			<dt>차량</dt>
+			<dd><?=trim($car["model"]. $car["number"])?></dd>
+			<? } ?>
+
+			<dt>금액</dt>
+			<dd><?=number_format($row["amount"])?>원</dd>
+		</dl>
+		<!-- // 영수증 상세 데이터 -->
+	</div>
+	<!-- 영수증 상세 이미지 -->
+	<div class="receiptImage"><img src="<?=_DATA_SERVER. $row["imageUrl"]?>" alt="영수증 이미지" /></div>
+	<!-- // 영수증 상세 이미지 -->
+	
+	<div class="receiptBottom">
+		<!-- 영수증 메모 -->
+		<div class="receiptTxt"><?=nl2br($row["memo"])?></div>
+		<!-- // 영수증 메모 -->
+		<div class="receiptBtn">
+			<a href="javascript:;" class="zoomOut"><span></span></a>
+			<a href="javascript:;" class="zoomIn"><span></span></a>
+		</div>
+	</div>
+</div>
+
+<script>
+$(document).ready(function(){
+	var imgWidth = 1;
+	var imgHeight = 1;
+	var is_act;
+	var firstX;
+	var firstY;
+	var cntImgWidth;
+	var cntImgHeight;
+	page1 = 0;
+	page2 = 0;
+	bottomBtn();
+	function bottomBtn(){
+		if(imgWidth == 1) {
+			$(".zoomOut").find("span").css("opacity", "0.5");
+			$(".zoomIn").find("span").css("opacity", "1");
+		} else if (imgWidth == 3){
+			$(".zoomOut").find("span").css("opacity", "1");
+			$(".zoomIn").find("span").css("opacity", "0.5");
+		} else {
+			$(".zoomOut").find("span").css("opacity", "1");
+			$(".zoomIn").find("span").css("opacity", "1");
+		}
+	}
+	$(".receiptImage img").on("mousedown", function(e){
+		firstX = e.pageX;
+		firstY = e.pageY;
+		is_act = true;
+	});
+	
+	$(".receiptImage img").on("mousemove", function(e){
+		if(	is_act != true ) {return false;}
+		page1 = e.pageX-firstX;
+		page2 = e.pageY-firstY;
+		$(".receiptImage img").css({"transform" : "matrix3d("+cntImgWidth+", 0, 0, 0, 0, "+cntImgHeight+", 0, 0, 0, 0, 1, 0, "+page1+", "+page2+", 0, 1)"});
+		//$(".receiptTxt").html(firstX +', '+ firstY);
+	});
+	$(".receiptImage img").on("mouseup", function(e){
+		is_act = false;
+	});
+	$(".receiptBtn .zoomIn").on("click", function(){
+		if(imgWidth == "3") {
+			return false;
+		}
+		page1 = 0;
+		page2 = 0;
+		cntImgWidth = imgWidth + 0.5;
+		cntImgHeight = imgHeight + 0.5;
+		$(".receiptImage img").css({"transform" : "matrix3d("+cntImgWidth+", 0, 0, 0, 0, "+cntImgHeight+", 0, 0, 0, 0, 1, 0, "+page1+", "+page2+", 0, 1)"});
+		imgWidth = cntImgWidth;
+		imgHeight = cntImgHeight;
+		bottomBtn();
+	});
+	$(".receiptBtn .zoomOut").on("click", function(){
+		if(imgWidth == "1") {
+			return false;
+		}
+		page1 = 0;
+		page2 = 0;
+		cntImgWidth = imgWidth - 0.5;
+		cntImgHeight = imgHeight - 0.5;
+		$(".receiptImage img").css({"transform" : "matrix3d("+cntImgWidth+", 0, 0, 0, 0, "+cntImgHeight+", 0, 0, 0, 0, 1, 0, "+page1+", "+page2+", 0, 1)"});
+		imgWidth = cntImgWidth;
+		imgHeight = cntImgHeight;
+		bottomBtn();
+	});
+	$(".receiptToggle a").on("click", function(){
+		if($(this).hasClass("on")){
+			$(this).removeClass("on").css("color", "#999").html("닫기");
+			$(this).parent("span").next("dl").stop().slideDown(100);
+			$(".receiptInfo").stop().animate({"padding": "20px"}, 50);
+		} else {
+			$(this).addClass("on").css("color", "#fab44c").html("열기");
+			$(this).parent("span").next("dl").stop().slideUp(100);
+			$(".receiptInfo").stop().animate({"padding": "10px 20px"}, 50);
+		}
+	});
+});
+</script>
+<? include "inc_html/popupFooter.html"; ?>

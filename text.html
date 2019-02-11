@@ -1,0 +1,42 @@
+<?php
+header("Content-Type:text/html;charset=UTF-8");
+include "inc/config.php";
+include "inc/mysql.inc.php";
+
+/*
+$Conn=mysqli_connect("localhost", "jeycorp", "ff323232", "shinsegae_db");
+if (!$Conn) //연결실패
+{
+	$this->errMsg("Database Connection Error, DB 계정과 암호를 체크하세요.", "");
+}
+
+$query = "SELECT * FROM user";
+$result = mysqli_query($Conn,$query);
+
+if ( $result ) 
+{
+	echo "조회된 행의 수 : ".mysqli_num_rows($result)."<br />";
+	while ($row = mysqli_fetch_assoc($result)) 
+	{
+	
+		printf ("%s : %s <br />", $row["employeeNumber"], $row["name"]);
+	}
+	
+	mysqli_free_result($result);
+}
+else
+{
+	echo "Error : ".mysqli_error($db_conn);
+}
+*/
+
+
+
+$db = new Mysql();
+$db->que = "SELECT employeeNumber FROM user WHERE enabled IN ('N', 'C')";
+$db->query();
+$disableUserCount = $db->getOne();
+
+echo $disableUserCount; 
+
+?>

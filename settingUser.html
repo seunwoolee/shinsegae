@@ -1,0 +1,117 @@
+<? 
+include "inc_html/header.html";
+?>
+<div class="row">
+	<div class="col-md-12 col-lg-12">
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">엑셀 업로드</span>
+				
+				<span class="txtCard">
+					※ 엑셀 파일 업로드로 여러 사용자들의 정보를 한번에 등록해 보세요.
+					<a href="singleIdSample.xls" class="btn btn-sm btn-new-ok pull-right"><i class="fa fa-file-excel-o mr5"></i>예제 파일 다운로드</a>
+				</span>
+			</div>
+			<div class="cardCont">
+				<table class="tbl_none">
+					<colgroup>
+						<col width="160" />
+						<col width="" />
+					</colgroup>
+					<tr>
+						<th>사용자 정보 엑셀 업로드</th>
+						<td>
+
+							<script type="text/javascript">
+							var thisVal;
+							$(function () {
+								$(".btn-upload").click(function (e) {
+									thisVal = $(this).parents(".input-group").find("input[type='file']").val();
+									e.preventDefault();
+									$(this).parents(".input-group").find("input[type='file']").click();
+								});
+							});
+
+							function changeValue(obj){
+								var thisVal = obj.value;
+								$(obj).parents(".input-group").find(".form-control").val(thisVal);
+							}
+							/* 2017-08-28 type="file" 초기화
+							function removeValue(obj){
+								var thisVal = $(obj).parents(".input-group").find("input[type='file']").val();
+								if(thisVal){
+									if(confirm("등록된 엑셀 파일을 삭제하시겠습니까?")) {
+										$(obj).parents(".input-group").find("input[type='file']").val("");
+										$(obj).parents(".input-group").find(".form-control").val("");
+									} else {
+										alert("취소하셨습니다.");
+									}
+								} else {
+									alert("등록할 excel 파일이 선택되지 않았습니다.");
+								}
+							}*/
+							</script>
+							<form name="excel_form" method="post" action="excel/Classes/uploadExcel.php" enctype="multipart/form-data" >
+							<div class="input-group" style="width:50%;">
+								<input type="file" id="upload_file" name="upload_file" class="hidden" onchange="changeValue(this)" />
+								<input type="text" class="form-control btn-upload" name="search" placeholder="등록할 excel 파일이 선택되지 않았습니다." readonly />
+								<div class="input-group-btn">
+									<!-- 2017-08-28 박용태 <button class="btn btn-new-cancle" onclick="removeValue(this)">등록 파일 삭제</button> -->
+									<button class="btn btn-new-ok btn-upload"><i class="fa fa-file-excel-o mr5"></i>등록 파일 선택</button>
+								</div>
+							</div>
+							</form>
+						</td>
+					</tr>
+				</table>
+			</div>
+		</div>
+	</div>
+	<script>
+	//높이 맞추기
+	var matchH;
+	var matchHresize;
+	$(".matchHeight").each(function(){
+		var thisHeight = $(this).outerHeight();
+		if (matchH){
+			if(thisHeight > matchH){
+				matchH = thisHeight;
+			}
+		} else {
+			matchH = thisHeight;
+		}
+	});
+	$(window).load(function(){
+		$(".matchHeight").outerHeight(matchH);
+	});
+
+	$(window).resize(function(){
+		matchHresize = '';
+		$(".matchHeight").removeAttr("style");
+		$(".matchHeight").each(function(){
+			var thisHeight = $(this).outerHeight();
+			if (matchHresize){
+				if(thisHeight > matchHresize){
+					matchHresize = thisHeight;
+				}		
+			} else {
+				matchHresize = thisHeight;
+			}
+		});
+		$(".matchHeight").outerHeight(matchHresize);
+	});
+
+	function save(){
+	if(confirm("엑셀파일을 등록하시겠습니까?")){
+		excel_form.submit();
+	}else{
+		return;
+	}
+	}
+	</script>
+</div>
+
+<div class="center mb20"><input type="button" value="확 인" onclick="save()" class="btn btn-lg btn-new-ok" /></div>
+
+
+<? include "inc_html/footer.html"; ?>

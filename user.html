@@ -1,0 +1,363 @@
+<? 
+include "inc_html/header.html";
+include "inc/department.inc.php";
+include "inc/paging.inc.php";
+include "inc/user.inc.php";
+include "inc/drivingLog.inc.php";
+include "inc/adminOnly.inc.php";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$pageNum				= $_GET["pageNum"];
+$findkey				= $_GET["findkey"];
+$enabled				= $_GET["enabled"];
+$upperDep				= 0;
+$lowerDep				= 0;
+
+if(empty($_GET["upperDep"]) == false)
+{
+	$upperDep				= $_GET["upperDep"];
+}
+
+if(empty($_GET["lowerDep"]) == false)
+{
+	$lowerDep				= $_GET["lowerDep"];
+}
+
+if(empty($enabled))
+{
+	$enabled = "ALL";
+}
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+$pg = new Paging(20, 10);
+
+$department = new Department($db);
+$department->loadUpperData();
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Code
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+/*
+$db->que = "SELECT type FROM calculateOilSetting";
+$db->query();
+$calculateOilType = $db->getOne();
+*/
+if(empty($findkey) == false)
+{
+	$where .= " AND u.name LIKE '%". $findkey. "%' ";
+}
+
+if($upperDep > 0 )
+{
+	$where .= " AND de.parentSeq=". $upperDep;
+	$department->loadLowerData($upperDep);
+}
+
+if($lowerDep > 0 )
+{
+	$where .= " AND de.seq =". $lowerDep;
+}
+
+if($enabled != "ALL")
+{
+	$where .= " AND u.enabled='". $enabled. "' ";
+}
+
+$db->que = " SELECT count(seq) FROM user ";
+$db->query();
+$totalCount = $db->getOne();
+$pg->set($totalCount, $pageNum);
+
+$db->que = " SELECT u.* , de.name AS departmentName, de.parentseq , de.fullName , de.departmentCode ";
+$db->que .= " ,(SELECT name FROM department WHERE seq = de.parentSeq) as parentDepName ";
+$db->que .= " FROM user as u LEFT JOIN department as de ON u.departmentSeq = de.seq WHERE enabled != 'X' ".$where ;
+$db->query();
+
+while($row = $db->getRow())
+{
+	$LISTNAME .= $row["name"];
+	$createTime = strToTime($row["createTime"]);
+
+	$enabledText = User::getEnabled($row["enabled"]);
+	
+	if($row["enabled"] == "N" || $row["enabled"] == "C"){
+		$enabledText = "<span class='label label-danger'>". $enabledText. "</span>";
+	} else if($row["enabled"] == "B"){
+		$enabledText = "<span class='label label-warning'>". $enabledText. "</span>";
+	} else {
+		$enabledText = "<span class='label label-info'>". $enabledText. "</span>";
+	}
+	$LIST .= "<tr height='30'>
+					<td align='center'><input type='checkbox' name='check[]' class='list-checkbox' value='". $row["seq"]. "'></td>
+					<td align='center' style='cursor:pointer' onclick='popupWrite(".$row["seq"].",".$row["parentseq"].",".$row["departmentSeq"].")'>". $enabledText. "</td>
+					<td align='center' style='cursor:pointer' onclick='popupWrite(".$row["seq"].",".$row["parentseq"].",".$row["departmentSeq"].")'>". $row["parentDepName"]. "</td>
+					<td align='center' style='cursor:pointer' onclick='popupWrite(".$row["seq"].",".$row["parentseq"].",".$row["departmentSeq"].")'>". $row["departmentName"]. "</td>
+					<td align='center' class='depCode' style='cursor:pointer' onclick='popupWrite(".$row["seq"].",".$row["parentseq"].",".$row["departmentSeq"].")'>". $row["departmentCode"]. "</td>
+					<td align='center' style='cursor:pointer' onclick='popupWrite(".$row["seq"].",".$row["parentseq"].",".$row["departmentSeq"].")'>". $row["name"]. "</td>
+					<td align='center' style='cursor:pointer' onclick='popupWrite(".$row["seq"].",".$row["parentseq"].",".$row["departmentSeq"].")'>". $row["employeeNumber"]. "</td>
+					<td align='center' style='cursor:pointer' onclick='popupWrite(".$row["seq"].",".$row["parentseq"].",".$row["departmentSeq"].")'>". $row["updateTime"]. "</td>";
+	$LIST .= "</tr>";
+}
+
+if(empty($LIST))
+{
+	$LIST = "	<tr height='30'>
+					<td id='emptyRow' class='center' colspan='8' style='height:80px;'>데이터가 없습니다.</td>
+				</tr>";
+}
+?>
+
+<script>
+var	upperDep; 		
+var	lowerDep;
+function popupWrite(seq, parentSeq, departmentSeq)
+{
+	popup("userWrite.html?seq=" + seq + "&upperDep=" + parentSeq + "&lowerDep=" + departmentSeq , 650, 750);
+}
+
+function popupChange()
+{
+	if($('.list-checkbox:checkbox:checked').length<1) {
+		alert("소속 부서를 변경할 사용자를 선택해 주세요.");
+		return false;
+	}
+	var sameCode;
+	var isAct = true;
+	var checkedValue = [];
+	$(".tblBasic tbody input[type='checkbox']").each(function(e){
+		if($(this).prop("checked")){
+			var thisCode = $(".tblBasic tbody").find("tr").eq(e).find(".depCode").text();
+			if(sameCode) {
+				if(sameCode != thisCode){
+					isAct = false;
+				}
+			} else {
+				sameCode = thisCode;
+			}
+		}
+	});
+	if(isAct) {
+		$("input:checkbox[type='checkbox']:checked").each(function()
+		{
+			checkedValue.push($(this).val());
+		});
+		//var checkedValue = $('.list-checkbox:checked').val();
+		popup("userChange.html?depCode=" + sameCode +"&checkValue=" + checkedValue, 650, 750);
+	} else {
+		alert("동일한 부서를 선택해주세요.");
+	}
+	
+
+	
+
+}
+
+function listPaging(pageNum)
+{
+	search(pageNum);
+}
+
+function listFormSubmit (mode) {
+	if($('.list-checkbox:checkbox:checked').length<1) {
+		alert("승인할 사용자를 선택해 주세요.");
+		return false;
+	}
+	
+	$("#mode").val(mode);
+	listForm.submit();
+}
+
+function checkUserDelete(){
+
+	if($('.list-checkbox:checkbox:checked').length<1) {
+		return false;
+	}
+	
+	if(confirm("삭제할 경우 복구가 불가능 합니다. 그래도 삭제 하시겠습니까?")) {
+		listForm.action = "post/userDeletePost.php";
+		listForm.submit();
+	}
+	
+	
+}
+
+function beforeSearch()
+{
+	var previousUpperDep  		 = <?=$upperDep?>;
+
+	if(previousUpperDep != upperDep)
+	{
+		lowerDep  = 0;
+	}
+}
+
+
+function search(pageNum)
+{
+	if(typeof pageNum === "undefined")
+	{
+		pageNum = 1;
+	}
+
+	var key = encodeURIComponent($("#findkey").val());
+	var enabled = $("#enabled").val();
+	upperDep 	= $("#upperDep").val();
+	lowerDep 	= $("#lowerDep").val();
+	
+	beforeSearch();
+	
+	window.location.href = "user.html?findkey=" + key + "&pageNum=" + pageNum + "&enabled=" + enabled + "&upperDep=" + upperDep + "&lowerDep=" + lowerDep;
+}
+
+
+
+</script>
+<div class="row">
+	<div class="col-md-12">
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">사용자 목록</span>
+				<span class="txtCard">
+					※ 운전자가 앱에서 사용승인 신청을 할 수도 있습니다.
+				</span>
+			</div>
+			<div class="cardSearch form-inline">
+				<select id="enabled" name="enabled" class="form-control" onchange="search()">
+					<option value="ALL"><?=User::getEnabled("ALL")?></option>
+					<option value="N" <?=LIB::isSelected("N", $enabled)?>><?=User::getEnabled("N")?></option>
+					<option value="C" <?=LIB::isSelected("C", $enabled)?>><?=User::getEnabled("C")?></option>
+					<option value="Y" <?=LIB::isSelected("Y", $enabled)?>><?=User::getEnabled("Y")?></option>
+					<option value="B" <?=LIB::isSelected("B", $enabled)?>><?=User::getEnabled("B")?></option>
+				</select>
+				<!--<select id="" name="" class="form-control">
+					<option value="0">전체 상위 부서</option>
+					<option value="0">FS담당</option>
+				</select>-->
+				<select name = "upperDep" id="upperDep" class="form-control" onchange="search()">
+					<option value=0>전체 상위 부서</option>
+					<?=$department->getTreeSelectBoxOptions($upperDep)?>
+				</select>
+				<select id="lowerDep" name="lowerDep" class="form-control" onchange="search()">
+					<option value=0>소속 하위 부서</option>
+					<?=$department->getLowerTreeSelectBoxOptions($lowerDep)?>
+				</select>
+				<!--
+				<select id="departmentSeq" name="departmentSeq" class="form-control" onchange="search()">
+					<option value="0">전체 부서</option>
+					<?=$department->getTreeSelectBoxOptions($departmentSeq)?>
+				</select>
+				-->
+
+				<input type="text" name="findkey" id="findkey" class="form-control" placeholder="성명을 입력 하세요" onkeypress="if(event.keyCode == 13) search()" value="<?=$findkey?>" />
+				<input type="button" value="검색" onclick="search()" class="btn btn-sm btn-new-find ml20" />
+				<!-- 2017-11-29 웹 사용자 추가 없음
+				<div class="pull-right"><input type="button" value="사용자 추가" onclick="popupWrite('')" class="btn btn-sm btn-new-ok mobile_clear" /></div>
+				-->
+			</div>
+			<div class="cardCont">
+				<form class="list-box" name="listForm" action="post/userListPost.php" method="post">
+				<input type="hidden" name="mode" id="mode" value="change" />	
+					<div class="btn-group mb10">
+						<input type="button" value="선택 승인" onclick="listFormSubmit('approve')" class="btn btn-sm btn-new-ok" />
+						<input type="button" value="소속 부서 변경" onclick="popupChange()" class="btn btn-sm btn-new-find" />
+					</div>
+					<div class="btn-group pull-right mb10 input-group">
+						<!--<input type="button" value="엑셀 업로드 예제" class="btn btn-sm btn-new-cancle" />-->
+						<a href="singleIdSample.xls" class="btn btn-sm btn-new-cancle"><i class="fa fa-file-excel-o mr5"></i>엑셀 업로드 예제</a>
+						<!--<input type="button" value="엑셀 업로드" class="btn btn-sm btn-new-ok"   />-->
+						<script type="text/javascript">
+						var thisVal;
+						$(function () 
+						{
+							$(".btn-new-ok").click(function (e) 
+							{
+								thisVal = $(this).parents(".input-group").find("input[type='file']").val();
+								e.preventDefault();
+								$(this).parents(".input-group").find("input[type='file']").click();
+							});
+						});
+
+						/*
+						function changeValue(obj)
+						{
+							var thisVal = obj.value;
+							$(obj).parents(".input-group").find(".form-control").val(thisVal);
+						}
+						*/
+						
+						function excelUpload(){
+							
+							
+							 var formData = new FormData();
+							 formData.append("upload_file",$("input[name=upload_file]")[0].files[0]);
+							 $.ajax({
+								url: 'excel/Classes/uploadExcel.php',
+								processData: false,
+								contentType: false,
+								data: formData,
+								dataType : 'json',	// 응답의 결과로 반환되는 데이터의 종류
+								type: 'POST',
+								success: function(data)
+								{
+									//alert("success");
+									//if(result==""){
+									//	alert("주문 엑셀 데이터를 등록하세요");
+									//	return;
+									//}
+									alert(data.result);
+								}
+								,error: function( xhr, status ) 
+								{
+									alert(JSON.stringify(status));
+								}
+							});
+						}
+						</script>
+						<input type="file" id="upload_file" name="upload_file" class="hidden" onchange="excelUpload()" />
+						<button class="btn btn-sm btn-new-ok"><i class="fa fa-file-excel-o mr5"></i>등록 파일 선택</button>
+					</div>
+					<div class="table-responsive">
+						<table class="tblBasic" style="min-width:1000px;">
+							<colgroup>
+								<col width="" />
+								<col width="" />
+								<col width="" />
+								<col width="" />
+								<col width="" />
+								<col width="" />
+								<col width="" />
+								<col width="" />
+							</colgroup>
+							<thead>
+							<tr height="30">
+								<th class="text-center"><input type="checkbox" name="check-all" id="check-all" value="Y" onchange="checkAll(this, 'list-checkbox')"></th>
+								<th class="text-center">상태</th>
+								<th class="text-center">소속 상위부서</th>
+								<th class="text-center">소속 부서</th>
+								<th class="text-center">부서코드</th>
+								<th class="text-center">성명</th>
+								<th class="text-center">사원번호</th>
+								<th class="text-center">최종 수정 날짜</th>
+							</tr>
+							</thead>
+							<tbody class="bgAdd">
+							<?=$LIST?>
+							</tbody>
+						</table>
+					</div>
+					<ul class="pagination pull-right">
+						<?=$pg->getPages()?>
+					</ul>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
+
+<? include "inc_html/footer.html"; ?>

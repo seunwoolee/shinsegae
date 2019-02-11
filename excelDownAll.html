@@ -1,0 +1,111 @@
+<?
+include "inc_html/popupHeader.html";
+include "inc/department.inc.php";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+$department = new Department($db);
+$department->loadData();
+
+
+
+$db->que = " SELECT * FROM purpose WHERE purposeState='Y' ";
+$db->query(); 
+//$rows = $db->getRows();
+while($row = $db->getRow())
+{
+	$CHECKBOX .=  "<label><input type='checkbox' id='purpose_a' name='purpose[]' class='purpose purpose-choice' value='". $row["purposeType"] ."'/>". $row["purposeName"]  ."</label>";
+}
+
+
+?>
+
+
+<script>
+
+$(function() {
+	$("#beginDate, #endDate").datepicker({
+		dateFormat: 'yy-mm-dd',
+		prevText: '이전 달',
+		nextText: '다음 달',
+		monthNames: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+		monthNamesShort: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+		dayNames: ['일','월','화','수','목','금','토'],
+		dayNamesShort: ['일','월','화','수','목','금','토'],
+		dayNamesMin: ['일','월','화','수','목','금','토'],
+		yearSuffix: ' / ',
+		changeMonth : true,
+		changeYear : true
+	});
+
+	$(".purpose").change(function(event) {
+		var checkbox = event.target;
+		if (checkbox.checked) {
+			if($(checkbox).hasClass("purpose-all")) {
+				$(".purpose-choice").prop("checked", false) ;
+			} else {
+				$(".purpose-all").prop("checked", false) ;
+			}
+		}
+	});
+});
+
+function downLoad()
+{
+	if($("#beginDate").val().length < 1 || $("#endDate").val().length < 1) {
+		alert("과세기간을 입력해 주세요");
+		return;
+	}
+
+	submitForm.submit();
+}
+
+</script>
+
+<style>
+ul > li {width:100%; height:30px; position:relative;}
+ul > li.empty {text-align:center;}
+ul > li > input {position:absolute; right:20px; top:5px;}
+</style>
+<div class='popup_title'>운행기록 전체 다운로드</div>
+
+<div class="popup_content">
+	<form  name="submitForm" action="php/excelDownList.php" method="post">
+		<table class="tbl_none">
+		<colgroup>
+			<col width="120" />
+			<col width="" />
+		</colgroup>
+		<tr class="border_top">
+			<th>기간</th>
+			<td>
+				<input type="text" class="input" id="beginDate" name="beginDate" value="" readonly /> ~
+				<input type="text" class="input" id="endDate" name="endDate" value="" readonly />
+			</td>
+		</tr>
+		<tr>
+			<th>
+				운행목적
+			</th>
+			<td>
+				<label><input type="checkbox" id="purpose_all" name="purpose[]" class="purpose purpose-all" value="all" checked /> 전체</label>
+				<?=$CHECKBOX?>
+			</td>
+		</tr>
+		</table>
+		<div class="center mt20">
+			<input type="button" value="확인" onclick="downLoad()" class="b80 btn btn-lg btn-oil" />
+			<input type="button" value="닫기" onclick="window.close()" class="b80 btn btn-lg btn-default" />
+		</div>
+	</form>
+</div>
+
+
+<? include "inc_html/popupFooter.html"; ?>

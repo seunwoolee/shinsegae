@@ -1,0 +1,214 @@
+<?
+include "inc_html/popupHeader.html";
+include "inc/department.inc.php";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+//$companySeq			= $COMPANY_SEQ;
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+$department = new Department($db);
+$department->loadData();
+
+//삼성웰스토리용
+/*
+if($_SESSION["OMember_ikey"]=='L110'){
+
+	$db->que = "SELECT * FROM purpose WHERE companySeq=". $companySeq. " AND purposeDefault='N'";
+	$db->query(); 
+	
+	$rows = $db->getRows();
+	
+	$CHECKBOX .= "<label><input type='checkbox' id='purpose_a' name='purpose[]' class='purpose purpose-choice' value='". $rows[0]["purposeType"] ."'/>". $rows[0]["purposeName"]  ."</label>";
+	$CHECKBOX .= "<label><input type='checkbox' id='purpose_a' name='purpose[]' class='purpose purpose-choice' value='". $rows[1]["purposeType"] ."'/>". $rows[1]["purposeName"]  ."</label>";
+	$CHECKBOX .= "<label><input type='checkbox' id='purpose_a' name='purpose[]' class='purpose purpose-choice' value='". $rows[2]["purposeType"] ."'/>". $rows[2]["purposeName"]  ."</label>";
+	$CHECKBOX .= "<label><input type='checkbox' id='purpose_a' name='purpose[]' class='purpose purpose-choice' value='". $rows[3]["purposeType"] ."'/>". $rows[3]["purposeName"]  ."</label>";
+
+}
+*/
+
+?>
+
+
+<script>
+
+$(function() {
+	$("#beginDate, #endDate").datepicker({
+		dateFormat: 'yy-mm-dd',
+		prevText: '이전 달',
+		nextText: '다음 달',
+		monthNames: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+		monthNamesShort: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+		dayNames: ['일','월','화','수','목','금','토'],
+		dayNamesShort: ['일','월','화','수','목','금','토'],
+		dayNamesMin: ['일','월','화','수','목','금','토'],
+		yearSuffix: ' / ',
+		changeMonth : true,
+		changeYear : true
+	});
+	
+	$(".purpose").change(function(event) {
+		var checkbox = event.target;
+		if (checkbox.checked) {
+			if($(checkbox).hasClass("purpose-all")) {
+				$(".purpose-choice").prop("checked", false) ;
+			} else {
+				$(".purpose-all").prop("checked", false) ;
+			}
+		}
+	});
+	
+});
+
+function selectedDepartment(departmentSeq)
+{
+	$.ajax({
+			url: "ajax/getDepartmentUsers.php",
+			data: {"departmentSeq":departmentSeq},
+			type: "post",
+			dataType : "json",
+			success: function( json ) {
+				list = "";
+				if(json.users == null) {
+					$("#userList").html("<tr><td colspan='2' height='100' class='center'>선택한 부서에 사용자가 없습니다</tr></td>");
+					alert("선택한 부서에 사용자가 없습니다.");
+				} else {
+					var list = "";
+					$.each(json.users, function(key) {
+						if(this.enabled == "X") {
+							list += "<tr>";
+							list += "	<td> <font color=red>[삭제]</font> " + this.dutyName + " " + this.name + "</span></td>";
+							list += "	<td class='center'><input type='button' value='다운로드' onclick=\"downLoad('" + this.uid + "')\" class='btn btn-small btn-default' /></td>";
+							list += "</tr>";
+						} else {
+							list += "<tr>";
+							list += "	<td> <span>" + this.dutyName + " " + this.name + "</span></td>";
+							list += "	<td class='center'><input type='button' value='다운로드' onclick=\"downLoad('" + this.uid + "')\" class='btn btn-small btn-default' /></td>";
+							list += "</tr>";
+						}
+						
+					});
+
+					$("#userList").html(list);
+				}
+				
+			},
+			error: function( xhr, status ) { alert("처리중 오류가 발생하였습니다. 다시 시도하여 주십시오. "); },
+			complete: function( xhr, status ) { }
+	});
+}
+
+
+
+function downLoad(uid)
+{
+	if($("#beginDate").val().length < 1 || $("#endDate").val().length < 1) {
+		alert("과세기간을 입력해 주세요");
+		return;
+	}
+
+	$("#uid").val(uid);
+	submitForm.submit();
+}
+
+
+$(document).ready(function() {
+    $('input[type=radio][name=docType]').change(function() {
+        if (this.value == 'FORM') {
+            submitForm.action ="php/excelDown.php";
+        }
+        else if (this.value == 'LIST') {
+             submitForm.action ="php/excelDownList.php";
+        }
+    });
+});
+
+</script>
+
+<style>
+ul > li {width:100%; height:30px; position:relative;}
+ul > li.empty {text-align:center;}
+ul > li > input {position:absolute; right:20px; top:5px;}
+</style>
+<div class='popup_title'>운행일지 다운로드</div>
+<div class="popup_content">
+	<form  name="submitForm" action="php/excelDown.php" method="post">
+		<input type="hidden" name="uid" id="uid" />
+		<table class="tbl_none">
+		<colgroup>
+			<col width="120" />
+			<col width="" />
+		</colgroup>
+		<tr class="border_top">
+			<th>출력형태</th>
+			<td>
+				<label><input type="radio" name="docType" value="FORM" checked /> 국세청 양식</label>
+				<label><input type="radio" name="docType" value="LIST" /> 운행정보 전체 (리스트)</label>
+			</td>
+		</tr>
+		<tr>
+			<th>
+				과세기간
+			</th>
+			<td>
+				<input type="text" class="input" id="beginDate" name="beginDate" value="" readonly /> ~
+				<input type="text" class="input" id="endDate" name="endDate" value="" readonly />
+			</td>
+		</tr>
+		<tr>
+			<th>
+				운행목적
+			</th>
+			<td>
+				<label><input type="checkbox" id="purpose_all" name="purpose[]" class="purpose purpose-all" value="all" checked /> 전체</label>
+				
+				<?
+					if($_SESSION["OMember_ikey"]=='L110'){
+						echo $CHECKBOX;
+					}else{
+							
+				?>
+					<label><input type="checkbox" id="purpose_a" name="purpose[]" class="purpose purpose-choice" value="a" /> 일반업무</label>
+					<label><input type="checkbox" id="purpose_e" name="purpose[]" class="purpose purpose-choice" value="e" /> 출·퇴근</label>
+					<label><input type="checkbox" id="purpose_g" name="purpose[]" class="purpose purpose-choice" value="g" /> 비업무용</label>
+				<?
+				}
+				?>
+			</td>
+		</tr>
+		<tr>
+			<th>부서선택</th>
+			<td>
+				<select id="departmentSeq" name="departmentSeq" class="btn btn-default" onchange="selectedDepartment(this.value)">
+					<option value="0">부서를 선택해 주세요</option>
+					<?=$department->getTreeSelectBoxOptions(0)?>
+				</select>
+			</td>
+		</tr>
+		</table>
+		<table class="table-list mt10">
+			<colgroup>
+				<col width="" />
+				<col width="100" />
+			</colgroup>
+			<tr height="30">
+				<th>이름</th>
+				<th>다운로드</th>
+			</tr>
+			<tbody id="userList">
+			<?=$LIST?>
+			</tbody>
+		</table>
+		<ul id="userList">
+		</ul>
+		<div class="center mt20"><input type="button" class="b80 btn btn-lg btn-default" value="닫기" onclick="window.close()" /></div>
+	</form>
+</div>
+
+
+<? include "inc_html/popupFooter.html"; ?>

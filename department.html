@@ -1,0 +1,160 @@
+<? 
+include "inc_html/header.html"; 
+include "inc/department.inc.php";
+include "inc/adminOnly.inc.php";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+$department = new Department($db);
+
+$notHaveApproverOfDepartment = $department->getUnsettingApprover();
+
+$upperDepartmentSeq = $department->getDefaultUpperDepartment();
+if($_GET["upperDepartmentSeq"] > 0)
+{
+	$upperDepartmentSeq = $_GET["upperDepartmentSeq"];
+	
+}
+$where	= "AND parentSeq= ".$upperDepartmentSeq;
+
+
+$upperDepartment	 = $department->getUpperDepartment($upperDepartmentSeq);
+$noDepartmentUsers 	 = $department->getNoDepartmentOfUsers();
+$noDepartment 	  	 = $department->getNoDepartment($noDepartmentUsers);
+$rowSpan 			 = $department->getRowSpan($where);
+$lowerDepartment 	 = $department->getLowerDepartment($where,$upperDepartmentSeq);
+?>
+
+<script>
+var seq = 0;
+function departmentWrite(seq)
+{
+	popup("departmentWrite.html?seq=" + seq, 650, 750);
+}
+function departmentApprover(seq)
+{
+	popup("departmentApprover.html?seq=" + seq, 650, 750);
+}
+function departmentWriteSub(seq)
+{
+	popup("departmentWriteSub.html?seq=" + seq, 650, 750);
+}
+function move(direction, seq, previousSeq)
+{
+	$("#seq").val(seq);
+	$("#mode").val(direction);
+	$("#previousSeq").val(previousSeq);	
+	submitForm.submit();
+}
+function callMyself(seq)
+{
+	document.location.href="?upperDepartmentSeq="+seq;
+}
+
+
+function add() {
+	init();
+	$("#modal").modal();
+}
+
+function addLow(parentSeq) {
+	$("#modalSub").modal();
+}
+
+function modify(seq, parentSeq, name) {
+	$("#modal").modal();
+}
+
+function save() {
+}
+
+
+
+
+</script>
+	<div class="row">
+		<div class="col-md-12">
+			<div class="card">
+				<div class="cardTitle">
+					<span class="titCard">부서 목록</span>
+					<span class="txtCard">
+						※ 최상위 부서(지점)를 등록하시려면 우측에 부서 생성 버튼을 선택해주시고, 하위 부서를 등록하시려면 관리 버튼에 하위 부서 생성을 눌러 주세요.
+						<div class="pull-right">
+							<a href="javascript:;" onclick="departmentApprover()" class="btn btn-sm btn-new-find mr5"><i class="fa fa-window-maximize mr5"></i>승인권자 일괄 변경</a>
+							<a href="javascript:;" onclick="departmentWrite(0)" class="btn btn-sm btn-new-ok mr5"><i class="fa fa-window-maximize mr5"></i>상위 부서 추가</a>
+							<a href="javascript:;" onclick="departmentWriteSub(seq)" class="btn btn-sm btn-new-ok"><i class="fa fa-window-maximize mr5"></i>소속 부서 추가</a>
+						</div>
+					</span>
+				</div>
+				<div class="cardCont">
+					<div class="table-responsive col-md-10">
+						<table class="tblBasic objCont" style="min-width:600px; background:#eceeef;">
+							<thead>
+							<tr>
+								<th class="text-center">상위부서(레벨1)</th>
+								<th class="text-center">소속부서(레벨2)</th>
+								<th class="text-center">부서코드</th>
+								<th class="text-center">제조/판관</th>
+								<th class="text-center">승인권자</th>
+								<th class="text-center">승인권자사번</th>
+								<th class="text-center">승인권자 부서</th>
+								<th class="text-center">승인권자 부서코드</th>
+								<th class="text-center">순서</th>
+								<th class="text-center">최종 수정 날짜</th>
+							</tr>
+							</thead>
+							<tbody>
+							<form name="submitForm" method="post" action="post/departmentPost.php">
+							<input type="hidden" name="mode" id="mode" value="move" />
+							<input type="hidden" name="seq" id="seq" value="123" />
+							<input type="hidden" name="previousSeq" id="previousSeq" value="" />
+							<tr>
+								<td class="text-center chgHeight" rowspan="<?=$rowSpan?>" valign="top" style="padding:0; border-right:3px solid #eceeef;">
+									<div style="position:absolute; top:0; left:0; right:0; bottom:0; overflow:auto;">
+										<table class="tblDepart nowFirst table-hover" style="margin-top:0; border-bottom:1px solid #eee;">
+											<tbody>
+											<?=$upperDepartment?>
+											<?=$noDepartment?>
+											</tbody>
+										</table>
+									</div>
+									<script>
+									$(document).ready(function(){
+										var firstLen = $(".nowFirst tr").length;
+										var totalLen = $(".objCont tr").length;
+										var secondLen = totalLen - firstLen - 1;
+										if(firstLen > secondLen) {
+											$(".chgHeight").attr("height", firstLen * 37 + 1);
+										}
+									});
+									</script>
+								</td>
+								<?=$lowerDepartment?>
+							</form>
+							</tbody>
+						</table>
+					</div>
+					<div class="col-md-2">
+						<div class="panel panel-default">
+							<div class="panel-heading text-center">
+								<span class="panel-title" style="font-size:14px;">승인권자 미설정 부서</span>
+							</div>
+							<div class="panel-body">
+								<table class="tblDepart table-hover">
+									<tbody>
+									<?=$notHaveApproverOfDepartment?>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+</article>
+
+	<? include "inc_html/footer.html"; ?>

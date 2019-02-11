@@ -1,0 +1,216 @@
+<?
+include "inc_html/popupHeader.html";
+include "inc/department.inc.php";
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+//$seq				= $_GET["seq"];
+$mode						= $_GET["mode"];
+$previousApprover			= $_GET["previousApprover"];
+$newApprover				= $_GET["newApprover"];
+$approverEmployeeNumber		= $_GET["approverEmployeeNumber"];
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+?>
+
+<script>
+function searchPreviousApprover()
+{
+	if($("#previousApprover").val().length < 1) 
+	{
+		alert("이름 또는 사번을 검색하세요");
+		return;
+	};
+
+	var mode = "previous"
+	var previousApprover = $("#previousApprover").val();
+	
+	$.ajax
+	({
+		type : "GET"
+		,url : "ajax/selectApprover.php"
+		,async : false		// 동기화처리
+		,data : {"previousApprover":previousApprover , "mode":mode}
+		,dataType : "json"	// 응답의 결과로 반환되는 데이터의 종류
+		,success : function(data){
+
+			if(data.list == null)
+			{
+				alert("검색된 승인권자가 없습니다.");
+			}
+			else
+			{	
+				displayPreviousApprover(data.list);
+				var previousApproverDepArray = data.previousApproverDepArray;
+				$(".previousApprover").chgElm({
+					arrayData	:	previousApproverDepArray
+				});
+			}
+			
+			
+		}
+		,error: function( xhr, status ) {
+		}
+		,complete : function(){
+			
+		}	// complete Event 호출시 사용
+	});
+}
+
+function displayPreviousApprover(list)
+{
+$("#previousBox").html("");
+	for(var i=0; i<list.length;i++)
+	{
+		var resultPrevious = "<option>"+
+							list[i]['username']+ "(" + list[i]['employeeNumber']+ ") " + list[i]['depname'] + "(" + list[i]['departmentCode'] + ")"+
+							"</option>\n";
+		$("#previousBox").append(resultPrevious);
+	}
+}
+
+function searchNewApprover()
+{
+	if($("#newApprover").val().length < 1) {
+		alert("이름 또는 사번을 검색하세요");
+		return;
+	};
+	
+	var mode = "new"
+	var newApprover = $("#newApprover").val();
+		$.ajax
+		({
+			type : "GET"
+			,url : "ajax/selectApprover.php"
+			,async : false		// 동기화처리
+			,data : {"newApprover":newApprover , "mode":mode}
+			,dataType : "json"	// 응답의 결과로 반환되는 데이터의 종류
+			,success : function(data)
+			{
+				if(data.list == null)
+				{
+					alert("검색된 승인권자가 없습니다.");
+				}
+				else
+				{	
+					displayNewApprover(data.list);
+					var newApproverDepArray = data.newApproverDepArray;
+
+					$(".newApprover").chgElm({
+						arrayData	:	newApproverDepArray
+					});
+				}
+			}
+			,error: function( xhr, status ) {
+			}
+			,complete : function(){
+				
+			}	// complete Event 호출시 사용
+		});
+}
+
+function displayNewApprover(list)
+{
+$("#newBox").html("");
+	for(var i=0; i<list.length;i++)
+	{
+		var resultNew = "<option>"+
+							list[i]['username']+ "(" + list[i]['employeeNumber']+ ") " + list[i]['depname'] + "(" + list[i]['departmentCode'] + ")"+
+							"</option>\n";
+		$("#newBox").append(resultNew);
+	}
+}
+
+function save() 
+{
+	if($("#previousApprover").is('[readonly]') == false) 
+	{
+		alert("이름 또는 사번을 선택해주세요");
+		return;
+	};
+	
+	if($("#newApprover").is('[readonly]') == false) 
+	{
+		alert("이름 또는 사번을 선택해주세요");
+		return;
+	};
+	$("#mode").val("approverChange");
+	submitForm.submit();
+}
+
+</script>
+
+
+
+
+
+
+<div class='popup_title'>승인권자 관리</div>
+
+<div class="popup_content">
+	<form name="submitForm" method="post" action="post/departmentPost.php">
+		<input type="hidden" name="mode" id="mode" value="approverChange" />
+		<div class="col-md-12">
+			<div class="card">
+				<div class="cardTitle">
+					<span class="titCard">승인권자 일괄 변경</span>
+				</div>
+				<div class="cardCont">
+					<table class="tbl_none">
+						<colgroup>
+							<col width="160" />
+							<col width="" />
+						</colgroup>
+						<tr>
+							<th>기존 승인권자 검색</th>
+							<td class="previousApprover">
+								<input type="hidden" name="previousApproverHidden" value="" />
+								<div class="input-group">
+									<input type="text" name="previousApprover" id="previousApprover" class="form-control" onkeypress="if(event.keyCode == 13) searchPreviousApprover()" style="width:100%" value="" placeholder="이름 또는 사번을 검색하세요." />
+
+									<span class="input-group-btn">
+										<button class="btn btn-new-ok depSearch" type="button" onclick="searchPreviousApprover()"><i class="fa fa-search mr5"></i>검색</button>
+									</span>
+								</div>
+								<div class="mt10 searchList" style="display:none;">
+									<select multiple class="form-control" id="previousBox">
+									</select>
+								</div>
+								<div class="mt10 subTxt1" style="display:none;">기존 승인권자 <strong class="name"></strong>님은 총 <strong class="depLen">0</strong>개의 부서를 관리하고 있습니다.</div>
+								<div class="subTxt2" style="display:none;"><strong>(<span class="arrDep"></span>)</strong></div>
+							</td>
+						</tr>
+						<tr>
+							<th>변경할 승인권자 검색</th>
+							<td class="newApprover">
+								<input type="hidden" name="newApproverHidden" value="" />
+								<div class="input-group">
+									<input type="text" name="newApprover" id="newApprover" class="form-control" onkeypress="if(event.keyCode == 13) searchNewApprover()" style="width:100%" value="" placeholder="이름 또는 사번을 검색하세요." />
+
+									<span class="input-group-btn">
+										<button class="btn btn-new-ok depSearch" type="button" onclick="searchNewApprover()"><i class="fa fa-search mr5"></i>검색</button>
+									</span>
+								</div>
+								<div class="mt10 searchList" style="display:none;">
+									<select multiple class="form-control" id="newBox">
+									</select>
+								</div>
+								<div class="mt10 subTxt1" style="display:none;">변경할 승인권자 <strong class="name"></strong>님은 총 <span class="depLen">0</span>개의 부서를 관리하고 있습니다.</div>
+								<div class="subTxt2" style="display:none;"><strong>(<span class="arrDep"></span>)</strong></div>
+							</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+		</div>
+	</form>
+	<div class="center mt20">
+		<input type="button" value="저장" onclick="save()" class="btn btn-lg btn-new-ok" />
+		<input type="button" value="닫기" onclick="window.close()" class="btn btn-lg btn-new-cancle" />
+	</div>
+</div>
+
+<? include "inc_html/popupFooter.html"; ?>

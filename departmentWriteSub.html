@@ -1,0 +1,327 @@
+<?
+include "inc_html/popupHeader.html";
+include "inc/department.inc.php";
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$seq						= $_GET["seq"];
+$approverName				= $_GET["approverName"];
+$approverEmployeeNumber		= $_GET["approverEmployeeNumber"];
+$employeeNumber				= $_GET["employeeNumber"];
+$upperDep					= $_GET["upperDep"];
+$lowerDep					= $_GET["lowerDep"];
+$depCode					= $_GET["depCode"];
+$code						= $_GET["code"]; 
+$mode						= $_GET["mode"]; 
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+$department = new Department($db);
+$department->loadUpperData();
+$tree = $department->getTree();
+
+if($seq > 0 && empty($mode))
+{
+	$lowerDepartmentInfo = $department->getlowerDepartmentInfo($seq);
+}
+
+?>
+<script>
+function searchApproverName()
+{
+	if($("#approverName").val().length < 1) 
+	{
+		alert("이름 또는 사번을 검색하세요");
+		return;
+	};
+
+	var mode = "select"
+	var approverName = $("#approverName").val();
+	
+	$.ajax
+	({
+		type : "GET"
+		,url : "ajax/selectApprover.php"
+		,async : false		// 동기화처리
+		,data : {"approverName":approverName , "mode":mode}
+		,dataType : "json"	// 응답의 결과로 반환되는 데이터의 종류
+		,success : function(data){
+			if(data.list == null)
+			{
+				alert("검색된 승인권자가 없습니다.");
+			}
+			else
+			{	
+				//console.log(data.list);
+				displayApprover(data.list);
+				//var previousApproverDepArray = data.previousApproverDepArray;
+				$(".approverName").chgElm({
+					callback	:	changeValue
+				});
+			}
+			
+		}
+		,error: function( xhr, status ) {
+		}
+		,complete : function(){
+			
+		}	// complete Event 호출시 사용
+	});
+}
+
+function displayApprover(list)
+{
+$("#approverBox").html("");
+	for(var i=0; i<list.length;i++)
+	{
+		var result = "<option>"+
+							list[i]['username']+ "(" + list[i]['employeeNumber']+ ") " + list[i]['depname'] + "(" + list[i]['departmentCode'] + ")"+
+							"</option>\n";
+		$("#approverBox").append(result);
+		//console.log(result);
+	}
+}
+
+function removeSpec(str){
+	str = str.replaceAll("(","-");
+	str = str.replaceAll(") ","-");
+	str = str.replaceAll(")","");
+	return str;
+}
+
+function changeValue(data) 
+{
+	$("input[name='approverName']").val(removeSpec(data).split("-")[0]);
+	$("input[name='approverEmployeeNumber']").attr("readOnly", true).val(removeSpec(data).split("-")[1]);
+	$("input[name='approverDep']").val(removeSpec(data).split("-")[2]);
+	$("input[name='approverDepCode']").val(removeSpec(data).split("-")[3]);
+	$(".btnCode").attr('disabled', true);
+}
+
+function save() 
+{
+	if($("#lowerDep").val().length < 1) {
+		alert("부서명을 입력해 주세요");
+		return;
+	};
+	
+	if($("#depCode").val().length < 1) {
+		alert("부서코드를 입력해 주세요");
+		return;
+	};
+	
+	if($("#code").val().length > 5) {
+		alert("제조 또는 판관을 선택해주세요");
+		return;
+	};
+	
+	$("#mode").val("lowerWrite");
+	submitForm.submit();
+}
+
+function removeDep(seq) 
+{
+	if(confirm("삭제할 경우 복구가 불가능 합니다. 그래도 삭제 하시겠습니까?")) 
+	{
+		$("#seq").val(seq);
+		$("#mode").val("remove");
+		submitForm.submit();
+	}
+	
+}
+
+function lowerModify(seq) 
+{
+	if($("#code").val().length > 5) {
+		alert("제조 또는 판관을 선택해주세요");
+		return;
+	};
+		
+		$("#mode").val("lowerModify");
+		$("#seq").val(seq);
+		$("#lowerDep").val();
+		$("#depCode").val();
+		submitForm.submit();
+}
+
+function searchapproverEmployeeNumber()
+{
+	if($("#approverEmployeeNumber").val().length < 1) {
+		alert("승인권자 사번을 입력해 주세요");
+		return;
+	};
+
+	var approverEmployeeNumber = $("#approverEmployeeNumber").val();
+	
+	$.ajax
+	({
+		type : "GET"
+		,url : "ajax/selectApprover.php"
+		,async : false		// 동기화처리
+		,data : {"approverEmployeeNumber":approverEmployeeNumber}
+		,dataType : "json"	// 응답의 결과로 반환되는 데이터의 종류
+		,success : function(data){
+			if(data.list["approverName"] == null)
+			{
+				alert("검색된 승인권자가 없습니다.");
+			}
+			else
+			{	
+				var setName 		  = data.list["approverName"];
+				var setEmployeeNumber = data.list["approverEmployeeNumber"];
+				var setDepartmentName = data.list["approverDepartmentName"];
+				var setDepartmentCode = data.list["approverDepartmentCodeCode"];
+				$("#approverName").val(setName).attr('readOnly', true);
+				$("#approverEmployeeNumber").val(setEmployeeNumber);
+				$("#approverDep").val(setDepartmentName);
+				$("#approverDepCode").val(setDepartmentCode);
+				$("#approverEmployeeNumber").attr('readOnly', true);
+				$(".btnCode, .depSearch").attr('disabled', true);
+				//console.log(data.list["approverName"]);
+			}
+			
+		}
+		,error: function( xhr, status ) {
+		}
+		,complete : function(){
+			
+		}	// complete Event 호출시 사용
+	});
+}
+</script>
+<div class='popup_title'>소속부서(레벨2) 관리</div>
+
+<div class="popup_content">
+	<form name="submitForm" method="post" action="post/departmentPost.php">
+	<input type="hidden" name="mode" id="mode" value="add" />
+	<input type="hidden" name="seq" id="seq" value="0" />
+		<div class="col-md-12">
+			<div class="card">
+				<div class="cardTitle">
+				<?if($seq > 0){?>
+					<span class="titCard">소속부서(레벨2) 수정</span>
+				<?}else{?>
+					<span class="titCard">소속부서(레벨2) 추가</span>
+				<?}?>
+				</div>
+				<div class="cardCont">
+					<table class="tbl_none">
+						<colgroup>
+							<col width="160" />
+							<col width="" />
+						</colgroup>
+						<tr class="border_top">
+							<th>상위 부서(레벨 1)</th>
+							<td>
+								<select name = "upperDep" id="upperDep" class="form-control">
+									<option>선택하세요.</option>
+									<?=$department->getTreeSelectBoxOptions($lowerDepartmentInfo["parentSeq"])?>
+								</select>
+							</td>
+						</tr>
+						<tr class="border_top">
+							<th>소속 부서(레벨 2) 이름</th>
+							<td>
+								<input type="text" name="lowerDep" id="lowerDep" class="form-control" value="<?=$lowerDepartmentInfo["name"]?>" placeholder="소속부서 이름을 입력하세요." />
+							</td>
+						</tr>
+						<tr>
+							<th>소속 부서(레벨 2) 코드</th>
+							<td>
+								<input type="text" name="depCode" id="depCode" class="form-control"  value="<?=$lowerDepartmentInfo["departmentCode"]?>" placeholder="소속부서 코드를 입력하세요." />
+							</td>
+						</tr>
+						<tr>
+							<th>승인권자 이름</th>
+							<td class="approverName">
+								<div class="input-group">
+									<input type="text" name="approverName" id="approverName" class="form-control <? if($lowerDepartmentInfo["approverName"]) echo "thereIs" ?>" style="width:100%" value="<?=$lowerDepartmentInfo["approverName"]?>" onkeypress="if(event.keyCode == 13) searchApproverName(<?=$seq?>)" placeholder="승인권자명을 입력하세요." <? if($lowerDepartmentInfo["approverName"]) echo "readOnly" ?> />
+
+									<span class="input-group-btn">
+										<button class="btn btn-new-ok depSearch" type="button" onclick="searchApproverName()" <? if($lowerDepartmentInfo["approverName"]) echo "disabled" ?>><i class="fa fa-search mr5"></i>검색</button>
+									</span>
+								</div>
+								<div class="mt10">
+									<!--.※ 검색된 항목이 없습니다.-->
+								</div>
+								<div class="mt10 searchList" style="display:none;">
+									<select multiple class="form-control" id="approverBox">
+									</select>
+								</div>	
+							</td>
+						</tr>
+						<tr>
+							<th>승인권자 사번</th>
+							<td>
+								<div class="input-group">
+									<input type="text" name="approverEmployeeNumber" id="approverEmployeeNumber" class="form-control  <? if($lowerDepartmentInfo["approverEmployeeNumber"]) echo "thereIs" ?>" style="width:100%" value="<?=$lowerDepartmentInfo["approverEmployeeNumber"]?>" onkeypress="if(event.keyCode == 13) searchapproverEmployeeNumber()" placeholder="승인권자명, 승인권자 사번을 입력하세요." <? if($lowerDepartmentInfo["approverEmployeeNumber"]) echo "readOnly" ?> />
+									<span class="input-group-btn">
+										<button class="btn btn-new-ok btnCode" type="button" onclick="searchapproverEmployeeNumber()" <? if($lowerDepartmentInfo["approverEmployeeNumber"]) echo "disabled" ?>><i class="fa fa-search mr5"></i>검색</button>
+									</span>
+								</div>
+							</td>
+						</tr>
+						<tr>		
+							<th>승인권자 부서</th>
+							<td>
+								<input type="text" name="approverDep" id="approverDep" class="form-control"  value="<?=$lowerDepartmentInfo["approverDepartmentName"]?>" readOnly />
+							</td>
+						</tr>
+						<tr>
+							<th>승인권자 부서코드</th>
+							<td>
+								<input type="text" name="approverDepCode" id="approverDepCode" class="form-control"  value="<?=$lowerDepartmentInfo["approverDepartmentCodeCode"]?>" readOnly />
+							</td>
+						</tr>
+						<tr>
+							<th>제조/판관</th>
+							<td>
+								<select name="code" id="code"  class="form-control">
+									<option>선택하세요.</option>
+									<option value="제조" <?=LIB::isSelected("제조", $lowerDepartmentInfo["code"])?>>제조</option>
+									<option value="판관" <?=LIB::isSelected("판관", $lowerDepartmentInfo["code"])?>>판관</option>
+								</select>
+							</td>
+						</tr>
+					</table>
+					<div class="mt10">
+						• 승인권자 이름 또는 사번 중 하나만 입력하면 자동으로 입력됩니다.
+					</div>
+					<div>
+						• 소속부서를 변경 또는 삭제할 경우 등록된 직원의 부서도 변경 또는 삭제됩니다.
+					</div>
+				</div>
+			</div>
+		</div>
+	</form>
+
+	<div class="center mt20">
+		<? if($seq > 0) { ?>
+		<input type="button" value="저장" onclick="lowerModify(<?=$seq?>)" class="btn btn-lg btn-new-ok" />
+		<input type="button" value="삭제" onclick="removeDep(<?=$seq?>)" class="btn btn-lg btn-new-cancle" />
+		<? } else { ?>
+		<input type="button" value="저장" onclick="save()" class="btn btn-lg btn-new-ok" />
+		<? } ?>
+		<input type="button" value="닫기" onclick="window.close()" class="btn btn-lg btn-new-cancle" />
+	</div>
+</div>
+<script>
+$(document).on("click","input[readonly='readonly']",function(){
+	$(this).removeAttr('readOnly');
+	$(this).next(".input-group-btn").find("button").removeAttr('disabled');
+});
+
+$(document).ready(function(){
+	$(".thereIs").on("click", function(){
+		$(this).removeAttr('readOnly').removeClass('thereIs');
+		$(this).parents("td").find('button').removeAttr('disabled');
+	});
+	$(".thereIs").blur(function(){
+		$(this).attr('readOnly', true);
+		$(this).parents("td").find('button').attr('disabled', true);
+	});
+});
+</script>
+
+<? include "inc_html/popupFooter.html"; ?>

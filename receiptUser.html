@@ -1,0 +1,216 @@
+<? 
+include "inc_html/header.html";
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$companySeq			= $COMPANY_SEQ;
+$year						= $_GET["year"];
+$month					= $_GET["month"];
+
+if(empty($year))
+{
+	$year = date("Y");
+}
+
+if(empty($month))
+{
+	$month = date("m");
+}
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Code
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+
+$beginDate = $year. "-". $month. "-01";
+$endDate = $year. "-". $month. "-31";
+$db->que = "SELECT COUNT(*) AS count, SUM(amount) AS amount, calculate FROM receipt WHERE companySeq=". $companySeq. " AND useDate>='". $beginDate. "' AND useDate <= '". $endDate. "' AND card='Personal' AND state='Y' GROUP BY calculate";
+$db->query();
+$noCalculateCount = 0;
+$noCalculateAmount = 0;
+$calculateCount = 0;
+$calculateAmount = 0;
+while($row = $db->getRow())
+{
+	if($row["calculate"] == "Y")
+	{
+		$calculateCount = $row["count"];
+		$calculateAmount = $row["amount"];
+	}
+	else if($row["calculate"] == "N")
+	{
+		$noCalculateCount = $row["count"];
+		$noCalculateAmount = $row["amount"];
+	}
+}
+
+
+
+
+
+$db->que = "SELECT r.*, u.name, u.orgUid, de.fullName, du.name AS dutyName FROM ";
+$db->que .= " receiptPersonalPaid AS r ";
+$db->que .= " LEFT JOIN user AS u ON r.userUid=u.uid ";
+$db->que .= " LEFT JOIN department AS de ON u.departmentSeq=de.seq ";
+$db->que .= " LEFT JOIN duty AS du ON u.dutySeq=du.seq ";
+$db->que .= " WHERE r.companySeq=". $companySeq. " AND r.year='". $year. "' AND r.month='". $month. "' ORDER BY de.fullName ASC, du.name ASC, u.name ASC";
+$db->query();
+
+$no = 1;
+while($row = $db->getRow())
+{
+	$LIST .= "<tr height='30'>
+					<td align='center'>". $no. "</td>
+					<td align='left'>". str_replace("/", " > ", $row["fullName"]). "</td>
+					<td align='center'>". $row["dutyName"]. "</td>
+					<td align='center'>". $row["name"]. "</td>
+					<td align='center'>". $row["orgUid"]. "</td>
+					<td align='center'>". number_format($row["receiptCount"]). " 건</td>
+					<td align='right' class='pr10'>". number_format($row["amount"]). " 원</td>
+				</tr>";
+	$no++;
+}
+
+if(empty($LIST))
+{
+	$LIST = "	<tr height='30'>
+					<td class='center' colspan='7' style='height:80px;'>". $year. "년 ". $month. "월 정산된 내역이 없습니다.<br />아직 정산을 하지 않았으면 좌측의 <b>\"정산하기\"</b>버튼을 눌러 주세요.</td>
+				</tr>";
+}
+
+
+?>
+
+<script type="text/javascript" src="js/jquery.rotate.js"></script>
+<script type="text/javascript">
+
+function calculateProc() {
+
+	var year = "<?=$year?>";
+	var month = "<?=$month?>";
+
+	if(confirm(year + "년 " + month + "월 개인 여비를 정산 하시겠습니까?") == false) {
+		return;
+	}
+	$("#rotate").addClass("fa-spin");
+
+	$.ajax({
+			url: "ajax/calculateReceipt.php",
+			data: {"year":year, "month":month},
+			type: "post",
+			dataType : "json",
+			success: function( json ) {
+				alert(json.message);
+				if(json.code == "OK") {
+					 window.location.reload();
+				} else {;
+					$("#rotate").removeClass("fa-spin");
+				}
+			},
+			error: function( xhr, status ) { alert("처리중 오류가 발생하였습니다. 다시 시도하여 주십시오. ");  rotateStop(); },
+			complete: function( xhr, status ) { }
+	});
+
+}
+
+function search() {
+	var year				= $("#year").val();
+	var month			= $("#month").val();
+	
+	window.location.href = "receiptUser.html?year=" + year + "&month=" + month;
+}
+
+function init() {
+	window.location.href = "receiptUser.html";
+}
+
+function downLoadExcel() {
+	var year				= $("#year").val();
+	var month			= $("#month").val();
+	window.location.href = "php/receiptPersonalExcelDown.php?year=" + year + "&month=" + month;
+}
+
+</script>
+<div class="row">
+	<div class="col-md-4">
+		<div class="card">
+			<div class="cardTitle"><span class="titCard"><?=$year?>년 <?=(int) $month?>월 정산 현황</span></div>
+			<div class="cardSearch">
+				<select id="year" name="year" class="input" style="padding:6px 10px; font-size:12px;">
+					<?=LIB::selectBoxYear($year)?>
+				</select>
+
+				<select id="month" name="month" class="input" style="padding:6px 10px; font-size:12px;">
+					<?=LIB::selectBoxMonth($month)?>
+				</select>
+				
+				<a href="javascript:search();" class="btn btn-sm btn-new-find">검색</a>
+				<button type="button" class="btn btn-sm btn-new-cancle" onclick="init()"><i class="fa fa-rotate-left mr5"></i>이번달로</button>
+			</div>
+			<div class="cardCont">
+				<table class="tbl_none typeParent <?=$setting["type"]?> bonusCost_<?=$setting["bonusCost"]?>">
+					<colgroup>
+						<col width="150" />
+						<col width="" />
+					</colgroup>
+					<tr>
+						<th>정산 건수 / 정산 금액</th>
+						<td><?=$calculateCount?>건 / <?=number_format($calculateAmount)?>원</td>
+					</tr>
+					<tr class="Basic">
+						<th>미정산 건수 / 미정산 금액</th>
+						<td><?=$noCalculateCount?>건 / <?=number_format($noCalculateAmount)?></td>
+					</tr>
+					<tr>
+						<td colspan="2" align="center" style="border-left:0">
+							<button type="button" class="btn btn-sm btn-new-cancle" onclick="calculateProc()"><i id="rotate" class="fa fa-refresh mr5"></i>정산하기</button>
+						</td>
+					</tr>
+				</table>
+			</div>
+		</div>
+	</div>
+	<form class="list-box" name="listForm">
+		<div class="col-md-8">
+			<div class="card">
+				<div class="cardTitle"><span class="titCard"><?=$year?>년 <?=(int) $month?>월 개인 여비 정산 목록</span></div>
+				<div class="cardCont">
+					<div class="mb10">
+						<button type="button" data-toggle="dropdown" class="btn dropdown-toggle btn-sm btn-new-ok" aria-expanded="false" onclick="downLoadExcel()">엑셀 다운로드</button>
+					</div>
+					<div class="table-responsive">
+						<table class="tblBasic" style="min-width:700px;">
+						<colgroup>
+							<col width="5%" />
+							<col width="25%" />
+							<col width="15%" />
+							<col width="15%" />
+							<col width="15%" />
+							<col width="10%" />
+							<col width="15%" />
+						</colgroup>
+						<tr height="30">
+							<th class="center">No.</th>
+							<th class="center">부서</th>
+							<th class="center">직책</th>
+							<th class="center">성명</th>
+							<th class="center">사번</th>
+							<th class="center">건수</th>
+							<th class="right pr10">금액</th>
+						</tr>
+						<?=$LIST?>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	</form>
+</div>
+<script>
+// 영수증 상세보기
+function popupReceipt(seq){
+	popup("receiptDetail.html?seq=" + seq, 850, 600);
+}
+</script>
+<? include "inc_html/footer.html"; ?>

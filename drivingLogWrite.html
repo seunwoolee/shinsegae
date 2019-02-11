@@ -1,0 +1,383 @@
+<?
+include "inc_html/popupHeader.html";
+include "inc/drivingLog.inc.php";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$seq						= $_GET["seq"];
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+$dLog = new DrivingLog();
+
+if($seq > 0)
+{
+	$db->que = "SELECT  dl.* , d.departmentCode , d.code FROM drivingLog as dl LEFT JOIN  department as d ON (dl.departmentSeq = d.seq) WHERE dl.seq=". $seq;
+	$db->query();
+	$row = $db->getRow();
+	$mode = "modify";
+
+	$db->que = "SELECT UNCOMPRESS(locations) FROM mapPoint WHERE drivingLogSeq=". $seq;
+	$db->query();
+	$mapPoints = json_decode($db->getOne(), JSON_UNESCAPED_UNICODE);
+	$count = count($mapPoints);
+	$aveDistance = 0;
+	if($count > 0 && $row["distance"] > 0)
+	{
+		$aveDistance = (int) (($row["distance"] * 1000) / $count);
+	}
+	
+	if($row["startAddress"] == "") {
+		$row["startAddress"] = "출발지 정보 없음";
+	}
+
+	$dTime = strtotime($row["stopTime"]) - strtotime($row["startTime"]);
+
+	if($dTime > 60)
+	{
+		$dTime = $dTime / 60;
+		$hour = (int) ($dTime / 60);
+		if($hour > 0)
+		{
+			$drivingTime = $hour. "시간 ";
+		}
+
+		$minute = $dTime % 60;
+		if($minute > 0)
+		{
+			$drivingTime .= $minute. "분";
+		}
+
+		$drivingTime = trim($drivingTime);
+	}
+	else
+	{
+		$drivingTime = "1분";
+	}
+
+	$db->que = "SELECT * FROM purpose ORDER BY sort";
+	$db->query();
+	while($purpose = $db->getRow())
+	{
+		if($purpose["purposeState"] == "Y" || $row["purpose"] == $purpose["purposeType"])
+		{
+			$PUL_OPTIONS .= '<option value="'. $purpose["purposeType"]. '" '. LIB::isSelected($purpose["purposeType"], $row["purpose"]). '>'. $purpose["purposeName"]. '</option>';
+		}
+
+	}
+}
+else
+{
+	exit;
+}
+
+?>
+
+
+<script>
+
+$(function() {
+	$("#startDate").datepicker({
+		dateFormat: 'yy-mm-dd',
+		prevText: '이전 달',
+		nextText: '다음 달',
+		monthNames: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+		monthNamesShort: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+		dayNames: ['일','월','화','수','목','금','토'],
+		dayNamesShort: ['일','월','화','수','목','금','토'],
+		dayNamesMin: ['일','월','화','수','목','금','토'],
+		yearSuffix: ' / ',
+		changeMonth : true,
+		changeYear : true
+	});
+});
+
+
+function checkForm()
+{
+	var start = parseInt($("#startDistance").val(), 10);
+	var stop = parseInt($("#stopDistance").val(), 10);
+
+	if(isNaN(start) || isNaN(stop))
+	{
+		alert("누적 주행거리 입력 오류!");
+		$("#startDistance").focus();
+		return;
+	}
+
+	if(start > stop)
+	{
+		alert("출발시 누적주행거리가 도착시 누적주행거리 보다 작습니다.");
+		$("#startDistance").focus();
+		return;
+	}
+
+
+
+	var tollAmount = parseInt($("#tollAmount").val(), 10);
+	var gitaAmount = parseInt($("#gitaAmount").val(), 10);
+
+	/*
+	if(isNaN(tollAmount)) {
+		alert("통행료 입력 오류!");
+		$("#tollAmount").focus();
+		return;
+	}
+
+	if(isNaN(gitaAmount)) {
+		alert("기타비용 입력 오류!");
+		$("#gitaAmount").focus();
+		return;
+	}
+	*/
+
+
+	submitForm.submit();
+}
+
+function removeLog() {
+	if(confirm("정말 삭제 하시겠습니까?")) {
+		$("#mode").val("remove");
+		submitForm.submit();
+	}
+}
+
+
+</script>
+
+<div class='popup_title'>운행기록 수정</div>
+
+<div class="popup_content">
+	<form  name="submitForm" action="post/drivingLogPost.php" method="post">
+		<input type="hidden" name="seq" value="<?=$seq?>" />
+		<input type="hidden" name="mode" id="mode" value="<?=$mode?>" />
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">
+					운행 정보
+					<a href="map.html?seq=<?=$seq?>" target="_blank" class="btn btn-sm btn-new-ok pull-right">지도 보기</a>
+				</span>
+			</div>
+			<div class="cardCont">
+				<div class="logView">
+					<div>
+						<div class="cardTime"><?=date("Y.m.d H:i", strtotime($row['startTime']))?></div>
+						<div class="cardAddress">
+							<? if ($row["startAddress"] == "출발지 정보 없음") echo "<span style='color:#e74c3c'>"; ?>
+							<?=$row['startAddress']?>
+							<? if ($row["startAddress"] == "출발지 정보 없음") echo "</span>"; ?>
+						</div>
+						<div><i class="ico_start"></i></div>
+					</div>
+					<div class="carArrow">
+						<div><img src="images/common/ico_car.png" alt="차량" /></div>
+						<div class="cardTime"><?=$row['name']?></div>
+					</div>
+					<div class="text-right" style="position:absolute; top:0; right:0;">
+						<div class="cardTime"><?=date("Y.m.d H:i", strtotime($row['startTime']))?></div>
+						<div class="cardAddress"><?=$row['stopAddress']?></div>
+						<i class="ico_end"></i>
+					</div>
+				</div>
+				<div class="row mt20">
+					<div class="col-xs-3">
+						<div>운행거리(km)</div>
+						<div><?=number_format($row["distance"])?></div>
+					</div>
+					<div class="col-xs-3">
+						<div>운행시간</div>
+						<div><?=$drivingTime?></div>
+					</div>
+					<div class="col-xs-3">
+						<div>평균속도(km/h)</div>
+						<div><?=$dLog->getAverageSpeed($mapPoints)?></div>
+					</div>
+					<div class="col-xs-3">
+						<div>최고속도(km)</div>
+						<div><?=$dLog->getMaxSpeed($mapPoints)?></div>
+					</div>
+				</div>
+				<!--
+				<table class="tbl_none">
+					<colgroup>
+						<col width="120" />
+						<col width="" />
+						<col width="120" />
+						<col width="" />
+					</colgroup>
+					<tr class="border_top">
+						<th>부서</th>
+						<td>
+							<input type="text" class="input" id="departmentName" name="departmentName" placeholder="부서를 입력해 주세요" maxlength="30" value="<?=$row['departmentName']?>" />
+						</td>
+						<th>성명</th>
+						<td>
+							<input type="text" class="input" id="name" name="name" placeholder="이름을 입력해 주세요" maxlength="9" value="<?=$row['name']?>" />
+						</td>
+					</tr>
+				</table>
+				-->
+			</div>
+		</div>
+
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">운전자 정보</span>
+			</div>
+			<div class="cardCont">
+				<table class="tbl_none">
+					<colgroup>
+						<col width="120" />
+						<col width="" />
+					</colgroup>
+					<tr class="border_top">
+						<th>부서</th>
+						<td>
+							<?=$row['departmentName']?>(<?=$row['departmentCode']?>)
+						</td>
+					</tr>
+					<tr>
+						<th>성명</th>
+						<td>
+							<?=$row['name']?>
+						</td>
+					</tr>
+					<tr>
+						<th>사번</th>
+						<td>
+							<?=$row['employeeNumber']?>
+						</td>
+					</tr>
+					<tr>
+						<th>제조/판관</th>
+						<td>
+							<?=$row['code']?>
+						</td>
+					</tr>
+				</table>
+			</div>
+		</div>
+
+		<div class="card form-inline">
+			<div class="cardTitle">
+				<span class="titCard">운행정보 수정</span>
+			</div>
+			<div class="cardCont">
+				<table class="tbl_none">
+					<colgroup>
+						<col width="120" />
+						<col width="" />
+						<col width="120" />
+						<col width="" />
+					</colgroup>
+					<tr>
+						<th>운행목적</th>
+						<td>
+							<select name="purpose" class="form-control">
+								<option value="">운행목적을 선택하세요</option>
+								<?=$PUL_OPTIONS?>
+							</select>
+						</td>
+					</tr>
+					<tr>
+						<th>주행거리(km)</th>
+						<td>
+							<input type="text" class="form-control number_format" id="distance" name="distance" value="<?=$row['distance']?>" readonly />
+						</td>
+					</tr>
+					<tr>
+						<th>출발시 누적(km)</th>
+						<td>
+							<input type="tel" class="form-control number_format" id="startDistance" onkeyUp="calculateDistance()" name="startDistance" placeholder="출발시 누적" value="<?=$row['startDistance']?>" />
+						</td>
+					</tr>
+					<tr>
+						<th>도착시 누적(km)</th>
+						<td>
+							<input type="tel" class="form-control number_format" id="stopDistance" onkeyUp="calculateDistance()" name="stopDistance" placeholder="도착시 누적"  value="<?=$row['stopDistance']?>" />
+						</td>
+					</tr>
+					<tr>
+						<th>출발지</th>
+						<td>
+							<input type="text" class="form-control" id="startAddress" name="startAddress" value="<?=$row['startAddress']?>" />
+						</td>
+					</tr>
+					<tr>
+						<th>도착지</th>
+						<td>
+							<input type="text" class="form-control"  id="stopAddress" name="stopAddress" value="<?=$row['stopAddress']?>" />
+						</td>
+					</tr>
+					<tr>
+						<th>목적지</th>
+						<td>
+							<input type="text" class="form-control"  id="purposeLocation" name="purposeLocation" placeholder="목적지를 입력해주세요." value="<?=$row['purposeLocation']?>" />
+						</td>
+					</tr>
+					<tr>
+						<th>평균 구간</th>
+						<td><?=$aveDistance?>m</td>
+					</tr>
+					<tr>
+						<th>GPS 위치 어플</th>
+						<td><a href="https://play.google.com/store/apps/details?id=<?=$row['gpsFakerPackage']?>" target="_blank"><?=$row['gpsFakerPackage']?></a></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">기타</span>
+			</div>
+			<div class="cardCont">
+				<table class="tbl_none">
+					<colgroup>
+						<col width="120" />
+						<col width="" />
+						<col width="120" />
+						<col width="" />
+					</colgroup>
+					<tr class="border_top">
+						<th>운행일자</th>
+						<td>
+							<input type="text" class="form-control" id="startDate" name="startDate" value="<?=$row['startDate']?>" readonly />
+						</td>
+						<th>운행시간</th>
+						<td>
+							<?=date("H:i", strtotime($row['startTime']))?> ~ <?=date("H:i", strtotime($row['stopTime']))?>
+						</td>
+					</tr>
+
+					<!-- 시작과 종료 일자가 다를때 날짜까지 표시  -->
+					<? if(date("Y.m.d", strtotime($row['startTime'])) != date("Y.m.d", strtotime($row['stopTime']))) { ?>
+					<tr class="border_top">
+						<th>시작일시</th>
+						<td><?=date("Y.m.d H:i", strtotime($row['startTime']))?></td>
+						<th>종료일시</th>
+						<td><?=date("Y.m.d H:i", strtotime($row['stopTime']))?></td>
+					</tr>
+					<? } ?>
+					<tr>
+						<th>비고</th>
+						<td colspan="3">
+							<textarea name="bigo" id="bigo" class="form-control" style="width:100%; height:80px;"><?=$row['bigo']?></textarea>
+						</td>
+					</tr>
+				</table>
+			</div>
+		</div>
+		<div class="center mt20">
+			<input type="button" value="확인" onclick="checkForm()" class="b80 btn btn-lg btn-new-ok" />
+			<input type="button" value="삭제" onclick="removeLog()" class="b80 btn btn-lg btn-new-cancle" />
+			<input type="button" value="닫기" onclick="window.close()" class="b80 btn btn-lg btn-new-cancle" />
+		</div>
+	</form>
+</div>
+	
+<? include "inc_html/popupFooter.html"; ?>

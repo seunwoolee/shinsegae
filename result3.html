@@ -1,0 +1,119 @@
+<?
+include "inc/department.inc.php";
+include "inc/mysql.inc.php";
+include "inc/config.php";
+include "inc/lib.inc.php";
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$beginDate				= $_GET["beginDate"];
+$endDate				= $_GET["endDate"];
+$upperDep				= $_GET["upperDep"];
+$lowerDep				= $_GET["lowerDep"];
+
+$db = new Mysql();
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Code
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+
+if(empty($beginDate) == false)
+{
+	$where .= " AND ymd >= '". $beginDate. "' ";
+}
+
+if(empty($endDate) == false)
+{
+	$where .= " AND ymd <= '". $endDate. "' ";
+}
+
+if($upperDep > 0 )
+{
+	$where .= " AND d.parentSeq =". $upperDep;
+}
+
+if($lowerDep > 0 )
+{
+	$where .= " AND departmentSeq =". $lowerDep;
+}
+
+
+if(empty($beginDate) == false && empty($endDate) == false)
+{
+	$db->que = " SELECT d.parentSeq , d.seq , departmentName , costCode , costName , d.code , sum(totalCost) as totalCost FROM oilCostPaid as op  LEFT JOIN department as d ON op.departmentSeq = d.seq  WHERE (1) ".$where." GROUP BY d.seq , costCode  order by d.parentSeq , d.sort";
+	$db->query();	
+	$list = $db->getRows();
+	$count = count($list);
+}
+
+$totalCost = 0;
+for($i=0;$i<count($list);$i++)
+{
+	$row = $list[$i];
+	$code = substr($row["code"] , 0 ,3);
+	if(($i % 2) == 0)
+	{
+		$LIST .= 	"<tr height='30'>
+					<td align='center'>". $code. ")여비교통비-".$row["costName"]."</td>
+					<td align='center'>". $row["departmentName"]. "</td>
+					<td align='center'>". number_format($row["totalCost"]). "원</td>
+					";
+		if($i == $count-1)
+		{
+			$LIST .= 	"
+						<td align='center'></td>
+						<td align='center'></td>
+						<td align='center'></td>
+						</tr>";
+		}
+	}
+	else
+	{
+		$LIST .= 	"
+					<td align='center'>". $code. ")여비교통비-".$row["costName"]."</td>
+					<td align='center'>". $row["departmentName"]. "</td>
+					<td align='center'>". number_format($row["totalCost"]). "원</td>
+					</tr>";
+	}
+
+	$totalCost = $totalCost + $row["totalCost"];
+}
+?>
+<table class="tbl_none form-inline mt20">
+	<colgroup>
+		<col width="120"></col>
+		<col width="*"></col>
+	</colgroup>
+	<!-- 검색 데이터 -->
+	<tr>
+		<th>총 합계</th>
+		<td>
+			<strong><?=number_format($totalCost)?>원</strong>
+		</td>
+	</tr>
+</table>
+
+<table class="tblBasic mt10" style="min-width:1000px;">
+	<colgroup>
+		<col width="" />
+		<col width="" />
+		<col width="" />
+		<col width="" />
+		<col width="" />
+		<col width="" />
+		<col width="" />
+		<col width="" />
+	</colgroup>
+	<thead>
+	<tr height="30">
+		<th class="text-center">계정명</th>
+		<th class="text-center">부서명</th>
+		<th class="text-center">금액</th>
+		<th class="text-center">계정명</th>
+		<th class="text-center">부서명</th>
+		<th class="text-center">금액</th>
+	</tr>
+	</thead>
+	<tbody class="bgAdd">
+	<?=$LIST?>
+	</tbody>
+</table>

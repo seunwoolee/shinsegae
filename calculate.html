@@ -1,0 +1,355 @@
+<? 
+include "inc_html/header.html";
+include "inc/drivingLog.inc.php";
+include "inc/paging.inc.php";
+
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$companySeq			= $COMPANY_SEQ;
+$year				= $_GET["year"];
+$month				= $_GET["month"];
+$purpose			= $_GET["purpose"];
+
+if(empty($year)) $year=date("Y");
+if(empty($month)) $month=date("m");
+if(empty($purpose)) $purpose="all";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+$purpose_db = new Mysql();
+
+$db->que = "SELECT * FROM oilCost WHERE year='". $year. "' AND month='". $month. "'";
+// if($purpose!="all"){
+// 	$db->que .= " AND purposeState IN (". $purpose .")";
+// }
+$db->query();
+$thisMonthOilCost =  $db->getRow();
+
+if($thisMonthOilCost != false)
+{
+	$thisMonthOilCost["type"] == "Basic" ?				$type="운행거리"									: $type="운행거리+연비";
+	$thisMonthOilCost["gasolineUp1800Cost"] < 1 ?			$thisMonthOilCost["gasolineUp1800Cost"] = 0			: $thisMonthOilCost["gasolineUp1800Cost"] = $thisMonthOilCost["gasolineUp1800Cost"];
+	$thisMonthOilCost["gasolineDown1800Cost"] < 1 ?				$thisMonthOilCost["gasolineDown1800Cost"] = 0			: $thisMonthOilCost["gasolineDown1800Cost"] = $thisMonthOilCost["gasolineDown1800Cost"];
+	$thisMonthOilCost["dieselCost"] < 1 ?				$thisMonthOilCost["dieselCost"] = 0			: $thisMonthOilCost["dieselCost"] = $thisMonthOilCost["dieselCost"];
+	$thisMonthOilCost["gasCost"] < 1 ?				$thisMonthOilCost["gasCost"] = 0			: $thisMonthOilCost["gasCost"] = $thisMonthOilCost["gasCost"];
+	$thisMonthOilCost["hybbridGasoilneCost"] < 1 ?			$thisMonthOilCost["hybbridGasoilneCost"] = 0		: $thisMonthOilCost["hybbridGasoilneCost"] = $thisMonthOilCost["hybbridGasoilneCost"];
+	$thisMonthOilCost["hybbridLpiCost"] < 1 ?			$thisMonthOilCost["hybbridLpiCost"] = 0		: $thisMonthOilCost["hybbridLpiCost"] = $thisMonthOilCost["hybbridLpiCost"];
+	$thisMonthOilCost["bonusCost"] == "Y" ?		$bonusCost="유류비 추가지급"						: $bonusCost="유류비 추가지급 안함";
+
+	$thisMonthSetting .= "<div>정산방식 : ". $type. "</div>";
+	$thisMonthSetting .= "<div class='Basic'>1Km당 유류비 : ". $thisMonthOilCost['basicCost']. "원</div>";
+	$thisMonthSetting .= "<div class='Mileage'>기본연비 : ". $thisMonthOilCost['defaultMileage']. "Km/L</div>";
+	$thisMonthSetting .= "<div class='Mileage'>휘발유1800미만 : ". $thisMonthOilCost['gasolineDown1800Cost']. "원/L</div>";
+	$thisMonthSetting .= "<div class='Mileage'>휘발유1800이상 : ". $thisMonthOilCost['gasolineUp1800Cost']. "원/L</div>";
+	$thisMonthSetting .= "<div class='Mileage'>경유 : ". $thisMonthOilCost['dieselCost']. "원/L</div>";
+	$thisMonthSetting .= "<div class='Mileage'>LPG : ". $thisMonthOilCost['gasCost']. "원/L</div>";
+	$thisMonthSetting .= "<div class='Mileage'>하이브리드_휘발유 : ". $thisMonthOilCost['hybbridGasoilneCost']. "원/L</div>";
+	$thisMonthSetting .= "<div class='Mileage'>하이브리드_LPI : ". $thisMonthOilCost['hybbridLpiCost']. "원/L</div>";
+	$thisMonthSetting .= "<div>정체구간 : ". $bonusCost. "</div>";
+	$thisMonthSetting .= "<div class='setting'>지급조건 : 평균속도 ". $thisMonthOilCost["bonusSection"]. "Km/H 미만 구간 ". $thisMonthOilCost["bonusPercent"]. "% 추가 지급</div>";
+}
+
+
+$db->que = "SELECT o.*, u.name, u.employeeNumber, u.oilType, de.fullName, du.name AS dutyName FROM ";
+$db->que .= " oilCostPaid AS o JOIN user AS u ON o.employeeNumber=u.employeeNumber ";
+$db->que .= " LEFT JOIN department AS de ON u.departmentSeq=de.seq ";
+$db->que .= " LEFT JOIN duty AS du ON u.dutySeq=du.seq ";
+$db->que .= " WHERE o.year='". $year. "' AND o.month='". $month. "' ORDER BY de.fullName ASC, u.name ASC";
+$db->query();
+var_dump($db->que);
+$no = 1;
+while($row = $db->getRow())
+{
+	$LIST .= "<tr height='30'>
+					<td align='center'>". $no. "</td>
+					<td align='left'>". str_replace("/", " > ", $row["fullName"]). "</td>
+					<td align='center'>". $row["dutyName"]. "</td>
+					<td align='center'>". $row["name"]. "</td>
+					<td align='center'>". $row["employeeNumber"]. "</td>
+					<td align='center'>". DrivingLog::getOilTypeName($row["oilType"]) . "</td>
+					<td align='right'>". number_format($row["distance"]). " KM</td>
+					<td align='right' class='pr10'>". number_format($row["totalCost"]). " 원</td>
+				</tr>";
+	$no++;
+}
+
+
+$db->que = "SELECT * FROM calculateOilSetting ";
+$db->query();
+$setting = $db->getRow();
+
+$setting["gasolineUp1800Cost"] < 1 ?		$setting["gasolineUp1800Cost"] = ""		: $setting["gasolineUp1800Cost"] = $setting["gasolineUp1800Cost"]. "원/L";
+$setting["gasolineDown1800Cost"] < 1 ?		$setting["gasolineDown1800Cost"] = ""		: $setting["gasolineDown1800Cost"] = $setting["gasolineDown1800Cost"]. "원/L";
+$setting["dieselCost"] < 1 ?		$setting["dieselCost"] = ""			: $setting["dieselCost"] = $setting["dieselCost"]. "원/L";
+$setting["gasCost"] < 1 ?			$setting["gasCost"] = ""				: $setting["gasCost"] = $setting["gasCost"]. "원/L";
+$setting["hybbridGasoilneCost"] < 1 ?		$setting["hybbridGasoilneCost"] = ""		: $setting["hybbridGasoilneCost"] = $setting["hybbridGasoilneCost"]. "원/L";
+$setting["hybbridLpiCost"] < 1 ?		$setting["hybbridLipCost"] = ""		: $setting["hybbridLpiCost"] = $setting["hybbridLpiCost"]. "원/L";
+
+
+$matchSetting = true;
+if($setting["type"] != $thisMonthOilCost["type"]) $matchSetting = false;
+if($setting["bonusCost"] != $thisMonthOilCost["bonusCost"] || $setting["bonusSection"] != $thisMonthOilCost["bonusSection"] || $setting["bonusPercent"] != $thisMonthOilCost["bonusPercent"]) $matchSetting = false;
+
+if($matchSetting == true)
+{
+	if($setting["type"] == "Basic")
+	{
+		if($setting["basicCost"] != $thisMonthOilCost["basicCost"]) $matchSetting = false;
+	}
+	else if($setting["type"] == "Mileage")
+	{
+		if($setting["defaultMileage"] != $thisMonthOilCost["defaultMileage"])		$matchSetting = false;
+		if($setting["gasolineUp1800Cost"] != $thisMonthOilCost["gasolineUp1800Cost"])			$matchSetting = false;
+		if($setting["gasolineDown1800Cost"] != $thisMonthOilCost["gasolineDown1800Cost"])			$matchSetting = false;
+		if($setting["dieselCost"] != $thisMonthOilCost["dieselCost"])					$matchSetting = false;
+		if($setting["gasCost"] != $thisMonthOilCost["gasCost"])						$matchSetting = false;
+		if($setting["hybbridGasoilneCost"] != $thisMonthOilCost["hybbridGasoilneCost"])						$matchSetting = false;
+		if($setting["hybbridLpiCost"] != $thisMonthOilCost["hybbridLpiCost"])						$matchSetting = false;
+		
+	}
+}
+
+$purpose_db->que = "SELECT * FROM purpose where purposeState IN ('y','n')";
+$purpose_db->query();
+
+
+$options = "<option value='all' >전체</option>";
+
+while($row = $purpose_db->getRow()){
+	
+	if($row["purposeType"] == $purpose ){
+		$options .= "<option value='". $row["purposeType"]. "' selected>". $row["purposeName"] ."</option>";
+	}else{
+		$options .= "<option value='". $row["purposeType"]. "'>". $row["purposeName"]. "</option>";
+	}
+	
+}
+
+
+?>
+
+<style>
+#calculate { padding:10px 0; background:#fff; border:1px solid #ddd; border-top:none;}
+
+.Basic .Mileage {display:none;}
+.Mileage .Basic {display:none;}
+.bonusCost_N .setting {display:none;}
+.old-setting div {color:#BBB}
+</style>
+
+<script>
+function search() {
+	var year = $("#year").val();
+	var month = $("#month").val();
+	var purpose = $("#purpose").val();
+
+	window.location.href = "calculate.html?year=" + year + "&month=" + month +"&purpose="+purpose;
+}
+
+function calculateProc() {
+
+	var year = "<?=$year?>";
+	var month = "<?=$month?>";
+	var this_btn= $("#btn-calculate");
+
+
+	if(confirm(year + "년 " + month + "월 유류비를 산출 하시겠습니까?.") == false) {
+		return;
+	}
+
+	this_btn.find("i").addClass("fa-spin");
+
+	$.ajax({
+			url: "ajax/calculateOil.php",
+			data: {"year":year, "month":month},
+			type: "post",
+			dataType : "json",
+			success: function( json ) {
+
+				alert(json.message);
+				console.log(json.message);
+				if(json.code == "OK") {
+					 window.location.reload();
+				} else {
+					this_btn.find("i").removeClass("fa-spin");
+				}
+			},
+			error: function( xhr, status ) { 
+							console.log(json.message);
+				alert("처리중 오류가 발생하였습니다. 다시 시도하여 주십시오. "); 
+				this_btn.find("i").removeClass("fa-spin");
+			},
+			complete: function( xhr, status ) { }
+	});
+
+}
+
+function popupWrite(){
+	popup("settingCalculate.html", 650, 600);
+}
+</script>
+
+<form name="submitForm" class="list-frame" method="post" action="php/downloadOilCostPaid.php">
+	<div class="row">
+		<div class="col-md-4">
+			<div class="card">
+				<div class="cardTitle">
+					<span class="titCard">유류비 정산 정보</span>
+				</div>
+				<div class="cardSearch">
+					<select id="year" name="year" class="btn btn-new-cancle">
+						<?=LIB::selectBoxYear($year)?>
+					</select>
+
+					<select id="month" name="month" class="btn btn-new-cancle">
+						<?=LIB::selectBoxMonth($month)?>
+					</select>
+					
+					<select id="purpose" name="purpose" class="btn btn-new-cancle">
+						<?=$options ?>
+					</select>
+					
+					<a href="javascript:search();" class="btn btn-sm btn-new-find">검색</a>
+				</div>
+				<div class="cardCont">
+					<div class="table-responsive">
+						<table class="tbl_none typeParent <?=$setting["type"]?> bonusCost_<?=$setting["bonusCost"]?>" style="min-width:250px;">
+							<colgroup>
+								<col width="120" />
+								<col width="" />
+							</colgroup>
+
+							<tr>
+								<th>정산 방식</th>
+								<td><?=$setting["type"] == "Basic" ? "운행거리" : "운행거리+연비"?></td>
+							</tr>
+							<tr class="Basic">
+								<th>1Km당 유류비</th>
+								<td><?=$setting['basicCost']?> 원</td>
+							</tr>
+							<tr class="Mileage">
+								<th>기본연비</th>
+								<td><?=$setting['defaultMileage']?> Km/L</td>
+							</tr>
+							<tr class="Mileage">
+								<th>휘발유1800미만</th>
+								<td><?=$setting['gasolineDown1800Cost']?></td>
+							</tr>
+							<tr class="Mileage">
+								<th>휘발유1800이상</th>
+								<td><?=$setting['gasolineUp1800Cost']?></td>
+							</tr>						
+							<tr class="Mileage">
+								<th>경유</th>
+								<td><?=$setting['dieselCost']?></td>
+							</tr>
+							<tr class="Mileage">
+								<th>LPG</th>
+								<td><?=$setting['gasCost']?></td>
+							</tr>
+							<tr class="Mileage">
+								<th>하이브리드_휘발유</th>
+								<td><?=$setting['hybbridGasoilneCost']?></td>
+							</tr>
+							<tr class="Mileage">
+								<th>하이브리드_LPI</th>
+								<td><?=$setting['hybbridLpiCost']?></td>
+							</tr>
+							<tr>
+								<th>정체구간</th>
+								<td><?=$setting["bonusCost"] == "Y" ? "유류비 추가지급" : "유류비 추가지급 안함"?></td>
+							</tr>
+							<tr class="setting">
+								<th>지급조건</th>
+								<td>평균속도 <?=$setting["bonusSection"]?>Km/H 미만 구간 <?=$setting["bonusPercent"]?>% 추가 지급 </td>
+							</tr>
+							<tr>
+								<td colspan="2" align="center" style="border-left:0">
+										<button type="button" class="btn btn-new-cancle" onclick="popupWrite()">정산 설정</button>
+									<? if(empty($LIST) == false) { ?>
+										<button type="button" id="btn-calculate" class="btn btn-new-ok" onclick="calculateProc()"><i id="rotate" class="fa fa-refresh mr5"></i>유류비 다시 산출하기</button>
+									<? } else { ?>
+										<button type="button" id="btn-calculate" class="btn btn-new-ok" onclick="calculateProc()"><i id="rotate" class="fa fa-refresh mr5"></i>유류비 산출하기</button>
+									<? } ?>
+								</td>
+							</tr>
+							
+						</table>
+					</div>
+					<? if($thisMonthOilCost != false && $matchSetting == false) { ?>
+					<div class="table-responsive">
+						<table class="tbl_none typeParent <?=$thisMonthOilCost["type"]?> bonusCost_<?=$thisMonthOilCost["bonusCost"]?>" style="min-width:250px; margin-top:80px">
+							<tr>
+								<th>과거 정산설정</th>
+								<td class="old-setting" align="left" style="border-left:0;">
+									<?=$thisMonthSetting?>
+								</td>
+							</tr>
+						</table>
+					</div>
+					<? } ?>
+				</div>
+				<div class="cardFoot">
+				</div>
+			</div>
+		</div>
+		
+		<div class="col-md-8">
+			<div class="card">
+				<div class="cardTitle">
+					<span class="titCard"><?=$year?>년 <?=$month?>월 유류비 정산 목록</span>
+					<span class="txtCard">※ 유류비 단가가 변경된 경우 다시 산출할 수 있습니다. 다시 산출할 경우 기존의 데이터는(해당 년/월) 삭제되며 변경된 단가로 재산출/입력됩니다.</span>
+				</div>
+				<div class="cardCont">
+					<? if(empty($LIST) == false) { ?>
+					<div class="mb10">
+						<input type="button" value="엑셀 다운로드" onclick="submitForm.submit()" class="btn btn-sm btn-new-ok" />
+					</div>
+					<? } ?>
+					<div class="table-responsive">
+						<table class="tblBasic">
+							<colgroup>
+								<col width="" />
+								<col width="" />
+								<col width="" />
+								<col width="" />
+								<col width="" />
+								<col width="" />
+								<col width="" />
+								<col width="" />
+								<col width="" />
+							</colgroup>
+							<thead>
+							<tr height="30">
+								<th class="text-center">No.</th>
+								<th class="text-center">부서</th>
+								<th class="text-center">직위</th>
+								<th class="text-center">성명</th>
+								<th class="text-center">사변</th>
+								<th class="text-center">유종</th>
+								<th class="text-center">주행거리(km)</th>
+								<th class="text-center">유류비(원)</th>
+							</tr>
+							</thead>
+							<tbody class="">
+								<? if(empty($LIST) == false) { ?>
+									<?=$LIST?>
+								<? } else { ?>
+									<td align='center' colspan='7' style='padding:30px 0;'><?=$year?>년 <?=$month?>월 산출된 데이터가 없습니다. <b>유류비산출하기</b> 버튼을 눌러 주세요.</td>
+								<? } ?>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</form>
+
+
+<? include "inc_html/footer.html"; ?>

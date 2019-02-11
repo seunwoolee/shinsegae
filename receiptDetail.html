@@ -1,0 +1,283 @@
+<?
+include "inc_html/popupHeader.html";
+include "inc/receipt.inc.php";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$companySeq			= $COMPANY_SEQ;
+$seq						= $_GET["seq"];
+$popupTitle				= "수정하기";
+
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+
+$db->que = "SELECT * FROM receiptView WHERE seq=". $seq;
+$db->query();
+$receipt = $db->getRow();
+
+
+//계정과목
+//-----------------------------------------------------------------------------------
+$db->que = "SELECT * FROM receiptAccountCode WHERE companySeq=". $companySeq. " AND enabled='Y' ORDER BY sort ASC";
+$db->query();
+while($row = $db->getRow())
+{
+	$AC_OPTIONS .= "<option value='". $row["seq"]. "' ". LIB::isSelected($row["seq"], $receipt["receiptAccountCodeSeq"]). ">[". $row["code"]. "] ". $row["name"]. "</option>";
+}
+
+$db->que = "SELECT * FROM receiptAccountCodeDetail WHERE receiptAccountCodeSeq=". $receipt["receiptAccountCodeSeq"]. " AND enabled='Y' ORDER BY sort ASC";
+$db->query();
+while($row = $db->getRow())
+{
+	$ACD_OPTIONS .= "<option value='". $row["seq"]. "' ". LIB::isSelected($row["seq"], $receipt["receiptAccountCodeDetailSeq"]). " data='". $receipt["receiptAccountCodeDetailType"]. "'>". $row["name"]. "</option>";
+}
+
+
+// project
+//-----------------------------------------------------------------------------------
+$db->que = "SELECT * FROM receiptProject WHERE companySeq=". $companySeq. " AND enabled='Y' ORDER BY sort ASC";
+$db->query();
+while($row = $db->getRow())
+{
+	$PROJECT_OPTIONS .= "<option value='". $row["seq"]. "' ". LIB::isSelected($row["seq"], $receipt["receiptProjectSeq"]). ">". $row["name"]. "</option>";
+}
+
+?>
+
+<script language='javascript' type="text/javascript" src="js/hashtable.js"></script>
+<script language='javascript' type="text/javascript" src="js/jquery.numberformatter-1.2.4.js"></script>
+<script>
+
+
+$(document).ready(function(){
+	displayCar();
+	$("#useDate").datepicker({
+		dateFormat: 'yy-mm-dd',
+		prevText: '이전 달',
+		nextText: '다음 달',
+		monthNames: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+		monthNamesShort: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+		dayNames: ['일','월','화','수','목','금','토'],
+		dayNamesShort: ['일','월','화','수','목','금','토'],
+		dayNamesMin: ['일','월','화','수','목','금','토'],
+		yearSuffix: ' / ',
+		changeMonth : true,
+		changeYear : true
+	});
+
+
+	$(".number_format").formatNumber({format:"#,###", locale:"us"});
+	$(".number_format").keyup(function(e){
+		$(this).parseNumber({format:"#,###", locale:"us"});
+		$(this).formatNumber({format:"#,###", locale:"us"});
+	});
+	
+	$("#state").on("change", function() {
+
+        if ($(this).val() == "X") {
+             $("#rejectReasonBox").show();
+         }
+         else {
+             $("#rejectReasonBox").hide();
+             document.getElementById("rejectReason").value = "";
+         }
+    });
+	
+	
+});
+
+
+
+
+function getReceiptAccountCodeDetails(seq) {
+	$.ajax({
+			url: "ajax/getReceiptAccountCodeDetails.php",
+			data: {"receiptAccountCodeSeq":seq},
+			type: "post",
+			dataType : "json",
+			success: function( json ) {
+				$("#receiptAccountCodeDetailSeq").html("");
+				$("#receiptAccountCodeDetailSeq").append("<option value='0'>세목 선택</option>");
+				$.each(json.receiptAccountCodeDetails, function(key) {
+					$("#receiptAccountCodeDetailSeq").append("<option value='" + this.seq + "' data='" + this.type + "'>" + this.name + "</option>");
+				});
+			},
+			error: function( xhr, status ) { alert("처리중 오류가 발생하였습니다. 다시 시도하여 주십시오. "); },
+			complete: function( xhr, status ) { }
+	});
+}
+
+function save() {
+	
+	var amount = parseInt($("#amount").val().replace(/,/g, ''), 10);
+	if(isNaN(amount) || amount < 1) {
+		alert("금액 입력 오류!");
+		$("#amount").focus();
+		return;
+	}
+	
+	if($("#receiptAccountCodeDetailSeq").val() == "0") {
+		alert("세목을 선택해 주세요.");
+		$("#receiptAccountCodeDetailSeq").focus();
+		return;
+	}
+
+	if($("#state").val() == "") {
+		alert("처리상태를 선택해 주세요.");
+		$("#state").focus();
+		return;
+	}
+
+	if($("#card").val() == "") {
+		alert("결제수단을 선택해 주세요.");
+		$("#card").focus();
+		return;
+	}
+
+	$(".number_format").parseNumber({format:"#,###", locale:"us"}); 
+	$("#mode").val("modify");
+	submitForm.submit();
+}
+
+function removeReceipt() {
+	if(confirm("삭제할 경우 복구가 불가능 합니다. 그래도 삭제 하시겠습니까?")) {
+		$("#mode").val("remove");
+		submitForm.submit();
+	}
+}
+
+
+function displayCar() {
+	var type = $("#receiptAccountCodeDetailSeq > option:selected").attr("data");
+	if(type == "Car") {
+		$("#tr-car").show();
+	} else if (type == "Def") {
+		$("#tr-car").hide();
+	}
+}
+</script>
+
+
+<div class='popup_title'>영수증 <?=$popupTitle?></div>
+
+<div class="popup_content">
+	<form name="submitForm" method="post" action="post/receiptPost.php" enctype="multipart/form-data">
+		<input type="hidden" name="seq" id="seq" value="<?=$seq?>" />
+		<input type="hidden" name="mode" id="mode" value="" />
+
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">
+					영수증 정보
+				</span>
+			</div>
+			<div class="cardCont">
+
+				<table class="tbl_none">
+					<colgroup>
+						<col width="120" />
+						<col width="" />
+					</colgroup>
+					<tr class="border_top">
+						<th>금액</th>
+						<td>
+							<input type="tel" name="amount" id="amount" class="input number_format" style="text-align:right" value="<?=$receipt['amount']?>" />
+						</td>
+					</tr>
+					<tr>
+						<th>계정과목</th>
+						<td>
+							<select id="receiptAccountCodeSeq" name="receiptAccountCodeSeq" class="btn btn-default" onchange="getReceiptAccountCodeDetails(this.value)">
+								<option value="0">계정과목 선택</option>
+								<?=$AC_OPTIONS?>
+							</select>
+
+							<select id="receiptAccountCodeDetailSeq" name="receiptAccountCodeDetailSeq" class="btn btn-default" onchange="displayCar()">
+								<option value="0">세목 선택</option>
+								<?=$ACD_OPTIONS?>
+							</select>
+						</td>
+					</tr>
+					
+					<tr>
+						<th>처리상태</th>
+						<td>
+							<select id="state" name="state" class="btn btn-default">
+								<option value="">선택하세요</option>
+								<option value="N" <?=LIB::isSelected($receipt["state"], "N")?>><?=Receipt::getStateText("N")?></option>
+								<option value="Y" <?=LIB::isSelected($receipt["state"], "Y")?>><?=Receipt::getStateText("Y")?></option>
+								<option value="X" <?=LIB::isSelected($receipt["state"], "X")?>><?=Receipt::getStateText("X")?></option>
+							</select>
+						</td>
+					</tr>
+					
+					<tr id="rejectReasonBox"   style="display:<?= $receipt["state"]=="X"?"":"none" ?>;" >
+						<th>반려사유</th>
+						<td>
+
+								<input type="text" id="rejectReason" class="input" name="rejectReason"  style="width:100%;" value="<?= $receipt["rejectReason"] ?>" ></input>
+
+						</td>
+					</tr>
+
+					<tr>
+						<th>결제수단</th>
+						<td>
+							<select id="card" name="card" class="btn btn-default">
+								<option value="">선택하세요</option>
+								<option value="Company" <?=LIB::isSelected($receipt["card"], "Company")?>><?=Receipt::getCardFullText("Company")?></option>
+								<option value="Personal" <?=LIB::isSelected($receipt["card"], "Personal")?>><?=Receipt::getCardFullText("Personal")?></option>
+							</select>
+						</td>
+					</tr>
+
+					<tr>
+						<th>사용일자</th>
+						<td>
+							<input type="text" class="input" id="useDate" name="useDate" value="<?=$receipt['useDate']?>" readonly />
+						</td>
+					</tr>
+
+					<? if(empty($PROJECT_OPTIONS) == false) { ?>
+					<tr>
+						<th>프로젝트</th>
+						<td>
+							<select id="receiptProjectSeq" name="receiptProjectSeq" class="btn btn-default" onchange="search()">
+								<option value="0">선택하세요</option>
+								<?=$PROJECT_OPTIONS?>
+							</select>
+						</td>
+					</tr>
+					<? } ?>
+					<tr>
+						<th>영수증 사진 첨부</th>
+						<td>
+							<input type="file" name="image" />
+						</td>
+					</tr>
+					<tr>
+					<th>메모</th>
+					<td colspan="3">
+						<textarea name="memo" id="memo" class="textarea" style="width:100%; height:80px;"><?=$receipt['memo']?></textarea>
+					</td>
+				</tr>
+
+					
+				</table>
+			</div>
+		</div>
+	</form>
+
+	<div class="center mt20">
+		<input type="button" value="<?=$popupTitle	?>" onclick="save()" class="btn mobile_mt10 btn-lg btn-new-ok" />
+		<? if($seq > 0) { ?><input type="button" value="삭제" onclick="removeReceipt()" class="btn mobile_mt10 btn-lg btn-new-cancle" /><? } ?>
+		<input type="button" value="닫기" onclick="window.close()" class="btn mobile_mt10 btn-lg btn-new-cancle" />
+	</div>
+</div>
+
+<? include "inc_html/popupFooter.html"; ?>

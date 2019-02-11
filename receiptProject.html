@@ -1,0 +1,215 @@
+<? 
+include "inc_html/header.html"; 
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+$companySeq = $COMPANY_SEQ;
+
+
+$db->que = "SELECT * FROM receiptProject WHERE companySeq=". $companySeq. " AND enabled != 'X' ORDER BY sort ASC";
+$db->query();
+while($row = $db->getRow())
+{
+	if($row["enabled"] == "Y")
+	{
+		$enabled = "";
+		$tblEnabled = "사용";
+	}
+	else
+	{
+		$enabled = "disabled";
+		$tblEnabled = "사용안함";
+	}
+
+
+	$LIST .= "<tr>\n";
+	$LIST .= "	<td class='text-center'>\n";
+	$LIST .= "		<span>[". $row["code"]. "]</span>\n";
+	$LIST .= "	</td>\n";
+	$LIST .= "	<td class='text-center'>\n";
+	$LIST .= "		<span>". $row["name"]. "</span>\n";
+	$LIST .= "	</td>\n";
+	$LIST .= "	<td class='text-center'>\n";
+	$LIST .= "		<span>". $tblEnabled. "</span>\n";
+	$LIST .= "	</td>\n";
+	$LIST .= "	<td class='text-center'>\n";
+	$LIST .= "		<button class='up btn btn-xs btn-new-ok' onclick=\"move('up', ". $row["seq"]. ")\"><i class='fa fa-caret-up'></i></button>\n";
+	$LIST .= "		<button class='down btn btn-xs btn-new-ok' onclick=\"move('down', ". $row["seq"]. ")\"><i class='fa fa-caret-down'></i></button>\n";
+	$LIST .= "		<a href='javascript:;' class='modify btn btn-xs btn-new-ok' onclick=\"modify(". $row["seq"]. ", '". $row["name"]. "', '". $row["code"]. "', '". $row["enabled"]. "')\">수정</a>\n";
+	$LIST .= "		<a href='javascript:;' class='remove btn btn-xs btn-new-cancle' onclick=\"remove(". $row["seq"]. ")\" >삭제</a>\n";
+	$LIST .= "	</td>"; 
+	$LIST .= "</tr>";
+}
+
+
+if(empty($LIST))
+{
+	$LIST = "<tr><td class='text-center' colspan='4'>등록된 프로젝트가 없습니다.</td></tr>\n";
+}
+
+
+?>
+
+<script>
+$(document).ready(function(){
+	$("body").addClass("h90");
+	init();
+});
+
+
+function init() {
+	$("#seq").val("0");
+	$("#name").val("");
+	$("#code").val("");
+	$('input:radio[name=enabled]:input[value=Y]').prop("checked", true);
+}
+
+function add() {
+	init();
+	$("#myModalLabel").html("프로젝트 추가");
+	$("#modal").modal();
+}
+
+/*
+function modify(seq, name, enabled) {
+	$("#seq").val(seq);
+	$('input:radio[name=enabled]:input[value=' + enabled + ']').prop("checked", true);
+	$("#name").val(name);
+	$("#btnSave").val("수정하기");
+}
+*/
+
+function modify(seq, name, code, enabled) {
+	init();
+	$("#myModalLabel").html("프로젝트 수정");
+	$("#seq").val(seq);
+	$('input:radio[name=enabled]:input[value=' + enabled + ']').prop("checked", true);
+	$("#name").val(name);
+	$("#code").val(code);
+	$("#modal").modal();
+}
+
+function remove(seq) {
+	if(confirm("정말 삭제 하시겠습니까?")) {
+		$("#seq").val(seq);
+		$("#mode").val("remove");
+		submitForm.submit();
+	}
+}
+
+function save() {
+	if($("#name").val().length < 1) {
+		alert("프로젝트명을 입력해 주세요");
+		$("#name").focus();
+		return;
+	}
+
+	if($("#code").val().length < 1) {
+		alert("프로젝트 코드를 입력해 주세요");
+		$("#code").focus();
+		return;
+	}
+
+	if($('input:radio[name=enabled]').is(':checked') == false) {
+		alert("사용여부를 선택해 주세요");
+		return;
+	}
+
+	$("#mode").val("write");
+	submitForm.submit();
+}
+
+function move(direction, seq)
+{
+	$("#seq").val(seq);
+	$("#mode").val(direction);
+	submitForm.submit();
+}
+
+</script>
+
+<!-- 카택스 카드 -->
+<div class="row">
+	<div class="col-md-12">
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">
+					프로젝트 목록
+					<a href="javascript:add()" class="btn btn-sm btn-new-ok pull-right newObject"><i class="fa fa-window-maximize mr5"></i>프로젝트 생성</a>
+				</span>
+			</div>
+			<div class="cardCont">
+				<div class="table-responsive">
+					<table class="tblBasic objCont table-hover" style="min-width:600px;">
+						<colgroup>
+							<col width="150"></col>
+							<col width="150"></col>
+							<col width="150"></col>
+							<col width="*"></col>
+						</colgroup>
+						<thead>
+						<tr>
+							<th class="text-center">프로젝트 코드</th>
+							<th class="text-center">프로젝트 명</th>
+							<th class="text-center">사용여부</th>
+							<th class="text-center">관리 버튼</th>
+						</tr>
+						</thead>
+						<tbody>
+							<?=$LIST?>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+</div>
+
+</article>
+
+<div class="copy">
+	<? include "inc_html/copy.html"; ?>
+</div>
+
+<!-- Modal -->
+<form name="submitForm" method="post" action="post/receiptProjectPost.php" class="modal fade" id="modal" tabindex="-1" role="dialog" aria-labelledby="newDepLabel" aria-hidden="true">
+	<input type="hidden" name="mode" id="mode" value="add" />
+	<input type="hidden" name="seq" id="seq" value="0" />
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header" style="border-top:4px solid #ffcc00">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+				<h4 class="modal-title" id="myModalLabel">프로젝트 생성</h4>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<label for="recipient-name" class="control-label">프로젝트명 입력</label>
+					<input type='text' name='name' id='name' class='input' style='width:100%' value='' />
+				</div>
+
+				<div class="form-group">
+					<label for="recipient-name" class="control-label">프로젝트 코드 입력</label><br />
+						
+					<input type="text" name="code" id="code" class="input" style='width:30%' value='' />
+				</div>
+
+
+				<div class="form-group">
+					<label class="control-label">사용여부</label><br />
+					<label style="padding-left:0;"><input type="radio" name="enabled" class="input_radio" value="Y"/> 사용</label>
+					<label><input type="radio" name="enabled" class="input_radio" value="N"/> 사용안함</label>
+				</div>
+			</div>
+			<div class="modal-footer" style="background:#f9f9f9;">
+				<button type="button" class="btn btn-new-cancle" data-dismiss="modal">닫기</button>
+				<button type="button" class="btn btn-new-ok" onclick="save()">저장하기</button>
+			</div>
+		</div>
+	</div>
+</form>
+
+</body>
+</html>

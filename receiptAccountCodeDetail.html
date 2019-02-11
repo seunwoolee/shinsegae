@@ -1,0 +1,330 @@
+<? 
+include "inc_html/header.html"; 
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$companySeq = $COMPANY_SEQ;
+
+$db->que = "SELECT * FROM receiptAccountCode WHERE companySeq=". $companySeq. " AND enabled != 'X' ORDER BY sort ASC";
+$db->query();
+while($row = $db->getRow())
+{
+	$OPTIONS .= "<option value='". $row["seq"]. "'>". $row["name"]. " (". $row["code"]. ")". "</option>";
+}
+
+
+$db->que = "SELECT d.*, c.name AS receiptAccountCodeName FROM receiptAccountCodeDetail AS d JOIN receiptAccountCode AS c ON d.receiptAccountCodeSeq=c.seq WHERE c.companySeq=". $companySeq. " AND c.enabled = 'Y' AND d.enabled != 'X' ORDER BY d.sort DESC";
+$db->query();
+while($row = $db->getRow())
+{
+	if($row["enabled"] == "Y")
+	{
+		$enabled = "";
+		$tblEnabled = "사용";
+	}
+	else
+	{
+		$enabled = "disabled";
+		$tblEnabled = "사용안함";
+	}
+
+
+	if($row["type"] == "Def")
+	{
+		$type = "일반지출";
+	}
+	else
+	{
+		$type = "차량지출";
+	}
+	
+	$LIST1 .= "<tr>\n";
+	$LIST1 .= "	<td class='text-center'>\n";
+	$LIST1 .= "		<span>". $row["sort"]. "</span>\n";
+	$LIST1 .= "	</td>\n";
+	$LIST1 .= "	<td class='text-center'>\n";
+	$LIST1 .= "		<span>". $type. "</span>\n";
+	$LIST1 .= "	</td>\n";
+	$LIST1 .= "	<td class='text-center'>\n";
+	$LIST1 .= "		<span>". $row["receiptAccountCodeName"]. "</span>\n";
+	$LIST1 .= "	</td>\n";
+	$LIST1 .= "	<td class='text-center'>\n";
+	$LIST1 .= "		<span>". $row["name"]. "</span>\n";
+	$LIST1 .= "	</td>\n";
+	$LIST1 .= "	<td class='text-center'>\n";
+	$LIST1 .= "		<span>". $tblEnabled. "</span>\n";
+	$LIST1 .= "	</td>\n";
+	$LIST1 .= "	<td class='text-center'>\n";
+	$LIST1 .= "		<a href='javascript:;' class='modify btn btn-xs btn-new-ok' onclick=\"modify(". $row["seq"]. ", ". $row["receiptAccountCodeSeq"]. ", '". $row["type"]. "', '". $row["name"]. "', ". $row["sort"]. ", '". $row["enabled"]. "', '". $row["bylaws"]. "'  )\">수정</a>\n";
+	$LIST1 .= "		<a href='javascript:;' class='remove btn btn-xs btn-new-cancle' onclick=\"remove(". $row["seq"]. ")\" >삭제</a>\n";
+	$LIST1 .= "	</td>\n"; 
+	$LIST1 .= "</tr>\n";
+
+	$LIST .= "<li>\n";
+	$LIST .= "	<a href='javascript:;' class='". $enabled. "'>\n";
+	$LIST .= "		<span class='indexTax'>순서 ". $row["sort"]. "</span>\n";
+	$LIST .= "		<span class='pl55' style='display:block;'>\n";
+	$LIST .= "			<span style='display:block; clear:both; float:left;'>". $row["name"]. "</span>\n";
+	$LIST .= "			<span style='display:block; clear:both; float:left;'>". $type. " - ". $row["receiptAccountCodeName"]. "</span>\n";
+	$LIST .= "			<div class='f_right'>\n";
+	$LIST .= "				<button class='modify btn btn-xs btn-new-ok' onclick=\"modify(". $row["seq"]. ", ". $row["receiptAccountCodeSeq"]. ", '". $row["type"]. "', '". $row["name"]. "', ". $row["sort"]. ", '". $row["enabled"]. "', '". $row["bylaws"]. "'  )\">수정</button>\n";
+	$LIST .= "				<button class='remove btn btn-xs btn-new-cancle' onclick=\"remove(". $row["seq"]. ")\">삭제</button>\n";
+	$LIST .= "			</div>\n";
+	$LIST .= "		</span>\n";
+	$LIST .= "	</a>\n";
+	$LIST .= "</li>"; 
+}
+
+
+if(empty($LIST))
+{
+	$LIST = "<li class='row' style='text-align:center; line-height:40px'>등록된 세목이 없습니다.</li>\n";
+}
+
+
+?>
+
+<script>
+$(document).ready(function(){
+	$("body").addClass("h90");
+	init();
+});
+$(window).load(function(){
+	$("span.indexTax").each(function(){
+		searchSame($(this).text());
+	});
+});
+
+
+
+function check_key()
+{
+	 var char_ASCII = event.keyCode;
+
+	if(char_ASCII==44){// ,표 입력 제한
+  		event.returnValue = false;
+	}else{
+		event.returnValue = true;
+	}
+}
+
+
+
+
+function searchSame(target) {
+	var thisSame = 0;
+	$("span.indexTax").each(function(){
+		if(target == $(this).text()){
+			thisSame += 1;
+		}
+	});
+	if(thisSame > 1){
+		// 중복된 값이 있을때
+		$("span.indexTax").each(function(){
+			if($(this).text() == target){
+				$(this).parent("a").addClass("error");
+			}
+		});
+	};
+};
+function init() {
+	$("#seq").val("0");
+	$("#name").val("");
+	$("input:radio[name='type']").removeAttr('checked'); 
+	$('input:radio[name=enabled]:input[value=Y]').prop("checked", true);
+	$("#receiptAccountCodeSeq").val("0");
+	$("#sort").val("1");
+	$("#bylaws").val("");
+}
+
+function add() {
+	init();
+	$("#myModalLabel").html("세목 추가");
+	$("#modal").modal();
+}
+/*
+function modify(seq, receiptAccountCodeSeq, type, name, sort, enabled, bylaws) {
+
+	init();
+	$("#seq").val(seq);
+	$('input:radio[name=type]:input[value=' + type + ']').prop("checked", true);
+	$('input:radio[name=enabled]:input[value=' + enabled + ']').prop("checked", true);
+	$("#name").val(name);
+	$("#receiptAccountCodeSeq").val(receiptAccountCodeSeq);
+	$("#sort").val(sort);
+	$("#bylaws").val(bylaws);
+	$("#btnSave").val("수정하기");
+}
+
+*/
+function modify(seq, receiptAccountCodeSeq, type, name, sort, enabled, bylaws) {
+	init();
+
+	$("#myModalLabel").html("세목 수정");
+	$("#seq").val(seq);
+	$('input:radio[name=type]:input[value=' + type + ']').prop("checked", true);
+	$('input:radio[name=enabled]:input[value=' + enabled + ']').prop("checked", true);
+	$("#name").val(name);
+	$("#receiptAccountCodeSeq").val(receiptAccountCodeSeq);
+	$("#sort").val(sort);
+	$("#bylaws").val(bylaws);
+	$("#modal").modal();
+}
+
+function remove(seq) {
+	if(confirm("정말 삭제 하시겠습니까?")) {
+		$("#seq").val(seq);
+		$("#mode").val("remove");
+		submitForm.submit();
+	}
+}
+
+function save() {
+	if($('input:radio[name=type]').is(':checked') == false) {
+		alert("세목 지출 구분을 선택해 주세요");
+		return;
+	}
+
+	if($("#receiptAccountCodeSeq").val() == "0") {
+		alert("계정과목을 선택해 주세요");
+		$("#receiptAccountCodeSeq").focus();
+		return;
+	}
+
+	if($("#name").val().length < 1) {
+		alert("세목명을 입력해 주세요");
+		$("#name").focus();
+		return;
+	}
+
+	
+	if($('input:radio[name=enabled]').is(':checked') == false) {
+		alert("사용여부를 선택해 주세요");
+		return;
+	}
+
+	$("#mode").val("write");
+	submitForm.submit();
+}
+
+function move(direction, seq)
+{
+	$("#seq").val(seq);
+	$("#mode").val(direction);
+	submitForm.submit();
+}
+
+</script>
+
+<!-- 카택스 카드 -->
+<div class="btn-group btn-group-lg">
+	<a href="receiptAccountCode.html" class="btn btn-new-cancle" style="border-bottom-left-radius:0; border-bottom:0;">계정과목 관리</a>
+	<a href="receiptAccountCodeDetail.html" class="btn btn-new-ok" style="border-bottom-right-radius:0; border-bottom:0;">세목 관리</a>
+</div>
+<div class="row">
+	<div class="col-md-12">
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">
+					세목 목록
+					<a href="javascript:add()" class="btn btn-sm btn-new-ok pull-right newObject"><i class="fa fa-window-maximize mr5"></i>세목 생성</a>
+				</span>
+			</div>
+			<div class="cardCont">
+				<div class="table-responsive">
+					<table class="tblBasic objCont table-hover" style="min-width:600px;">
+						<colgroup>
+							<col width="50"></col>
+							<col width="100"></col>
+							<col width="100"></col>
+							<col width="150"></col>
+							<col width="100"></col>
+							<col width="*"></col>
+						</colgroup>
+						<thead>
+						<tr>
+							<th class="text-center">순서</th>
+							<th class="text-center">지출구분</th>
+							<th class="text-center">상위 계정과목</th>
+							<th class="text-center">세목명</th>
+							<th class="text-center">사용여부</th>
+							<th class="text-center">관리 버튼</th>
+						</tr>
+						</thead>
+						<tbody>
+							<?=$LIST1?>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+</div>
+
+</article>
+
+<div class="copy">
+	<? include "inc_html/copy.html"; ?>
+</div>
+
+<!-- Modal -->
+<form name="submitForm" method="post" action="post/receiptAccountCodeDetailPost.php" class="modal fade" id="modal" tabindex="-1" role="dialog" aria-labelledby="newDepLabel" aria-hidden="true">
+	<input type="hidden" name="mode" id="mode" value="add" />
+	<input type="hidden" name="seq" id="seq" value="0" />
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header" style="border-top:4px solid #ffcc00">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+				<h4 class="modal-title" id="myModalLabel">세목 생성</h4>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<label class="control-label">세목 지출 구분</label><br />
+					<label style="padding-left:0;"><input type="radio" name="type" class="input_radio" value="Def"/> 일반지출</label>
+					<label><input type="radio" name="type" class="input_radio" value="Car"/> 차량지출</label>
+				</div>
+
+				<div class="form-group">
+					<label class="control-label">계정과목 선택</label><br />
+					<select name="receiptAccountCodeSeq" id="receiptAccountCodeSeq" class="input">
+						<option value="0">선택하세요</option>
+						<?=$OPTIONS?>
+					</select>
+				</div>
+
+				<div class="form-group">
+					<label for="recipient-name" class="control-label">세목명 입력</label>
+
+					<input type="text" name="name" id="name" class="input" style="width:100%" value='' placeholder='' onkeyPress="check_key()" />
+				</div>
+
+				<div class="form-group">
+					<label for="recipient-name" class="control-label">사용규정</label>
+
+					<input type="text" name="bylaws" id="bylaws" class="input" style="width:100%" value='' placeholder='비용에 대한 간략한 사용 규정을 입력해 주세요' />
+				</div>
+
+				<div class="form-group">
+					<label for="recipient-name" class="control-label">정렬순서 입력</label><br />
+					<input type="text" name="sort" id="sort" class="input" style="width:20%" value='' placeholder='정렬순서를 입력 하세요' />
+				</div>
+
+				<div class="form-group">
+					<label class="control-label">사용여부</label><br />
+					<label style="padding-left:0;"><input type="radio" name="enabled" class="input_radio" value="Y"/> 사용</label>
+					<label><input type="radio" name="enabled" class="input_radio" value="N"/> 사용안함</label>
+				</div>
+			</div>
+			<div class="modal-footer" style="background:#f9f9f9;">
+				<button type="button" class="btn btn-new-cancle" data-dismiss="modal">닫기</button>
+				<button type="button" class="btn btn-new-ok" onclick="save()">저장하기</button>
+			</div>
+		</div>
+	</div>
+</form>
+
+</body>
+</html>

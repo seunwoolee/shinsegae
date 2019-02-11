@@ -1,0 +1,246 @@
+<? 
+include "inc_html/headerSetting.html"; 
+include "inc/adminOnly.inc.php";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Code
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+
+$db->que = "SELECT email FROM user WHERE adminYn = 'Y' AND employeeNumber = '".$LOGIN_ID."'";
+$db->query();
+$email = $db->getOne();
+
+
+$db->que = "SELECT * FROM company WHERE seq= 1";
+$db->query();
+$company = $db->getRow();
+
+
+
+$db->que = "SELECT COUNT(*) FROM user WHERE enabled='Y'";
+$db->query();
+$userCount = $db->getOne();
+
+
+$db->que = "SELECT * FROM purpose ORDER BY sort";
+$db->query();
+while($purpose = $db->getRow())
+{
+	if($purpose["purposeState"] == "Y" || $row["purpose"] == $purpose["purposeType"])
+	{
+		$PUL_LIST .= '<option value="'. $purpose["purposeType"]. '" '. LIB::isSelected($purpose["purposeType"], $company["defaultPurpose"]). '> '. $purpose["purposeName"]. '</option>';
+	}
+}
+
+?>
+
+<script>
+function save() 
+{
+	if($("#email").val().length < 1) 
+	{
+		alert("이메일 주소를 입력해 주세요.");
+		$("#email").focus();
+		return;
+	}
+	
+	if($("#newPassword").val().length > 1) 
+	{
+		if(CheckPassword())
+		{
+			submitForm.submit();
+		}
+	}
+	
+	submitForm.submit();
+}
+
+function CheckPassword()   
+{   
+	var onePattern 		=  /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9])(?!.*\s).{8,}$/;  //8자리 규칙
+	var twoPattern	 	=  /^[A-Za-z]{11,}$/; 												 //11자리 소 ,대
+	var threePattern 	=  /^[a-z0-9]{11,}$/; 						 						 //11자리 소, 숫
+	var fourPattern 	=  /^[a-z!@#$%^&*]{11,}$/;  										 //11자리 소, 특
+	var fivePattern 	=  /^[A-Z0-9]{11,}$/;  												 //11자리 대, 숫
+	var sixPattern	 	=  /^[A-Z!@#$%^&*]{11,}$/; 											 //11자리 대, 특
+	var sevenPattern	=  /^[0-9!@#$%^&*]{11,}$/;  										 //11자리 숫, 특
+	if($("#newPassword").val().match(onePattern))   
+	{   
+		return true;  
+	}  
+	else if($("#newPassword").val().match(twoPattern))
+	{
+		return true;  
+	}
+	else if($("#newPassword").val().match(threePattern))
+	{
+		return true;  
+	}
+	else if($("#newPassword").val().match(fourPattern))
+	{
+		return true;  
+	}
+	else if($("#newPassword").val().match(fivePattern))
+	{
+		return true;  
+	}
+	else if($("#newPassword").val().match(sixPattern))
+	{
+		return true;  
+	}
+	else if($("#newPassword").val().match(sevenPattern))
+	{
+		return true;  
+	}
+	else  
+	{   
+		alert('비밀번호 규칙을 확인하세요.')  
+		return false;  
+	}  
+} 
+</script>
+
+
+<form name="submitForm" method="post" action="post/settingAppPost.php" enctype="multipart/form-data" autocomplete="off" >
+	<div class="row">
+		<div class="col-md-12">
+			<div class="card">
+				<div class="cardTitle">
+					<span class="titCard">운행기록 설정</span>
+				</div>
+				<div class="cardCont">
+					<table class="tbl_none">
+						<colgroup>
+							<col width="160" />
+							<col width="" />
+						</colgroup>
+						<tbody>
+						<tr>
+							<th>운행목적 기본값</th>
+							<td>
+								<select id="defaultPurpose" name="defaultPurpose" class="input">
+									<option value="" <?=LIB::isSelected("", $company["defaultPurpose"])?>> 미선택</option>
+									<?=$PUL_LIST?>
+								</select>
+								
+								&nbsp; 
+								<input type="button" value="편집" onclick="popup('purposeSetting.html')" class="btn btn-sm btn-new-ok" />
+							</td>
+						</tr>
+						<tr>
+							<th>운행일자 변경</th>
+							<td>
+								<label><input type="radio" name="lockDate" value="N" <?=LIB::isChecked("N", $company["lockDate"])?> /> 가능</label>
+								<label><input type="radio" name="lockDate" value="Y" <?=LIB::isChecked("Y", $company["lockDate"])?> /> 불가능</label>
+							</td>
+						</tr>
+						<tr>
+							<th>운행시간 변경</th>
+							<td>
+								<label><input type="radio" name="lockTime" value="N" <?=LIB::isChecked("N", $company["lockTime"])?> /> 가능</label>
+								<label><input type="radio" name="lockTime" value="Y" <?=LIB::isChecked("Y", $company["lockTime"])?> /> 불가능</label>
+							</td>
+						</tr>
+						<tr>
+							<th>운행거리 변경</th>
+							<td>
+								<label><input type="radio" name="lockDistance" value="N" <?=LIB::isChecked("N", $company["lockDistance"])?> /> 가능</label>
+								<label><input type="radio" name="lockDistance" value="Y" <?=LIB::isChecked("Y", $company["lockDistance"])?> /> 불가능</label>
+							</td>
+						</tr>
+						<tr>
+							<th>GPS 운행구간 지도 저장</th>
+							<td>
+								<label><input type="radio" name="lockSaveMapPoint" value="N" <?=LIB::isChecked("N", $company["lockSaveMapPoint"])?> /> 개인이 ON, OFF 가능</label>
+								<label><input type="radio" name="lockSaveMapPoint" value="Y" <?=LIB::isChecked("Y", $company["lockSaveMapPoint"])?> /> 무조건 저장</label>
+							</td>
+						</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+		<div class="col-md-12">
+			<div class="card">
+				<div class="cardTitle">
+					<span class="titCard">일반 설정</span>
+				</div>
+				<div class="cardCont">
+					<table class="tbl_none">
+						<colgroup>
+							<col width="160" />
+							<col width="" />
+						</colgroup>
+						<tr>
+							<th>기기변경시 재승인</th>
+							<td>
+								<label><input type="radio" name="lockDeviceChange" value="Y" <?=LIB::isChecked("Y", $company["lockDeviceChange"])?> /> 사용함</label>
+								<label><input type="radio" name="lockDeviceChange" value="N" <?=LIB::isChecked("N", $company["lockDeviceChange"])?> /> 사용안함</label>
+								<br /><br />※ 하나의 앱 계정으로 여러명이(복수의 스마트폰 기기) 운행기록을 작성하는 것을 방지할 수 있습니다.
+							</td>
+						</tr>
+						<tr>
+							<th>관리자 이메일 변경</th>
+							<td>
+								<input type="text" name="email" id="email" value="<?=$email?>" class="input" style="width:200px;" placeholder="관리자의 이메일 주소를 입력해 주세요." />
+								<br /><br />※ 관리자 이메일을 통하여 비밀번호 분실 및 내 정보를 관리 할 수 있습니다. 보다 안전한 관리를 위해 정확한 이메일을 등록하세요.
+							</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+		</div>
+		
+		<div class="col-md-12">
+			<div class="card">
+				<div class="cardTitle">
+					 <span class="titCard">비밀번호 변경</span>
+					
+					<span class="txtCard">
+						※ 비밀번호는 대/소문자,숫자,특수문자 조합인 경우 8자리 이상 또는 2가지 조합인 경우 11자리 이상.
+					</span>
+				</div>
+				<div class="cardCont">
+					<table class="tbl_none">
+						<colgroup>
+							<col width="160" />
+							<col width="" />
+						</colgroup>
+						<tr>
+							<th>현재 비밀번호</th>
+							<td>
+								<input type="password" id="password" name="password" class="input" autocomplete="off" placeholder="현재 접속중인 계정의 비밀번호를 입력해 주세요." />
+							</td>
+						</tr>
+						<tr>
+							<th>변경할 비밀번호</th>
+							<td>
+								<input type="password" id="newPassword" name="newPassword" class="input" autocomplete="off" placeholder="변경할 비밀번호를 입력해 주세요." />
+							</td>
+						</tr>
+						<tr>
+							<th>비밀번호 확인</th>
+							<td>
+								<input type="password" id="newPasswordConfirm" name="newPasswordConfirm" class="input" autocomplete="off" placeholder="변경할 비밀번호를 다시 한번 입력해 주세요." />
+							</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+
+</form>
+
+<div class="center mt20"><input type="button" value="확 인" onclick="save()" class="btn btn-lg btn-new-ok" /></div>
+
+<? include "inc_html/footer.html"; ?>

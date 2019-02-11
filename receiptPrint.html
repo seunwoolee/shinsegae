@@ -1,0 +1,202 @@
+<? 
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Include
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+include "inc/config.php";
+include "inc/lib.inc.php";
+include "inc/mysql.inc.php";
+
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$companySeq			= $COMPANY_SEQ;
+$year						= $_GET["year"];
+$uid						= $_GET["uid"];
+
+
+
+if(empty($year))
+{
+	$year = date("Y");
+}
+
+$beginDate = $year. "-01-01";
+$endDate = $year. "-12-31";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+
+
+
+$db->que = "SELECT * FROM user WHERE uid='". $uid. "'";
+$db->query();
+$row = $db->getRow();
+$car = trim($row["carModel"]. " ". $row["carNumber"]);
+if(empty($car) == false)
+{
+	$carFullName = $row["name"]. " > ". $car;
+}
+else
+{
+	$carFullName = $row["name"];
+}
+
+
+
+$companyAmount = 0;
+$personalAmount = 0;
+
+if(empty($uid) == false)
+{
+	$month = "";
+	$monthTotalAmount = 0;
+	$db->que = "SELECT * FROM receiptView WHERE userUid='". $uid. "' AND receiptAccountCodeDetailType='Car' AND state='Y' AND useDate >= '". $beginDate. "' AND useDate <= '". $endDate. "' ORDER BY useDate ASC";
+	$db->query();
+	while($row = $db->getRow())
+	{
+		if($row["card"] == "Personal")
+		{
+			$personalAmount += $row["amount"];
+		}
+		else if($row["card"] == "Company")
+		{
+			$companyAmount += $row["amount"];
+		}
+		
+		$thisMonth = date("m", strToTime($row["useDate"]));
+		if($month != "" && $month != $thisMonth)
+		{
+			$RECEIPT_LIST .= '
+					<tr height="5" class="noboder"><td colspan="7"><div class="dotted"></div></td></tr>
+					<tr height="30" class="monthTotal">
+						<td align="left" colspan="6">'. ((int) $month). ' 월 합계</td>
+						<td align="right">'. number_format($monthTotalAmount). '원</td>
+					</tr>';
+			$monthTotalAmount = 0;
+		}
+		
+		$month = $thisMonth;
+		$monthTotalAmount += $row["amount"];
+
+
+		$RECEIPT_LIST .= '<tr height="22" class="noboder">
+						<td align="left">'. $row["useDate"]. '</td>
+						<td align="left">'. $row["departmentName"]. '</td>
+						<td align="left">'. $row["name"]. '</td>
+						<td align="left">'. $row["receiptAccountCodeCode"]. '</td>
+						<td align="left">'. $row["receiptAccountCodeName"]. '</td>
+						<td align="left">'. $row["receiptAccountCodeDetailName"]. '</td>
+						<td align="right">'. number_format($row["amount"]). '원</td>
+					</tr>';
+	}
+
+
+	if($monthTotalAmount > 0)
+	{
+		$RECEIPT_LIST .= '
+					<tr height="5" class="noboder"><td colspan="7"><div class="dotted"></div></td></tr>
+					<tr height="30" class="monthTotal">
+						<td align="left" colspan="6">'. ((int) $month). ' 월 합계</td>
+						<td align="right">'. number_format($monthTotalAmount). '원</td>
+					</tr>';
+	}
+
+	$listTitle = "<span style='font-size:13px; color:#228fcd;'>". $carFullName. "</span> ". $year. "년 지출 현황";
+}
+else
+{
+	$listTitle = "지출 현황";
+	$RECEIPT_LIST = '<tr height="50" class="noboder"><td align="center" colspan="7">좌측 목록에서 차량을 선택해 주세요.</td></tr>';
+}
+
+
+if(empty($RECEIPT_LIST))
+{
+	$RECEIPT_LIST = '<tr height="50" class="noboder"><td align="center" colspan="7">'. $year. '년도 지출 내역이 없습니다.</td></tr>';
+}
+
+
+?>
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta id="viewport" name="viewport" content="initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0">
+<meta name="description" content="">
+<meta name="author" content="">
+<!--[if lt IE 10]>
+<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+<![endif]-->
+
+<!-- 미디어쿼리 IE호환 -->
+
+<!--[if lt IE 9]>
+ <script src="http://css3-mediaqueries-js.googlecode.com/svn/trunk/css3-mediaqueries.js"></script>
+<![endif]-->
+
+<!-- 미디어 쿼리 IE호환 끝 -->
+<title><?=_TITLE?></title>
+<link rel="stylesheet" type="text/css" media="all" href="css/common.css" rel="stylesheet" />
+<link rel="stylesheet" type="text/css" media="all" href="css/layout2.css" rel="stylesheet" />
+
+
+<script language='javascript' type="text/javascript" src="js/jquery-1.11.0.min.js"></script>
+<script language='javascript' type="text/javascript" src="js/common.js"></script>
+
+
+
+<!-- <script type="text/javascript" src="js/jqplot.highlighter.min.js"></script>
+<script type="text/javascript" src="js/jqplot.cursor.min.js"></script>
+<script type="text/javascript" src="js/jqplot.pointLabels.min.js"></script> -->
+</head>
+<body>
+<script>
+$(document).ready(function(){
+	window.print();
+});
+</script>
+<style>
+.tbl_none td {padding:0px 5px; border-bottom:1px solid #000;}
+.tbl_none th {padding:10px 5px; border-bottom:1px solid #000;}
+
+tr.noboder td {border:0;}
+tr.monthTotal td {border:0; padding-bottom:30px; padding-top:5px;}
+
+</style>
+
+<div id="receiptList">
+	<h2><?=$listTitle?></h2>
+	<table class="tbl_none mt10">
+		<colgroup>
+			<col width="" />
+			<col width="" />
+			<col width="" />
+		</colgroup>
+		<tr>
+			<th class="center">법인 지출</th>
+			<td class="right"><?=number_format($companyAmount)?>원</td>
+			<th class="center">개인 지출</th>
+			<td class="right"><?=number_format($personalAmount)?>원</td>
+			<th class="center">총 지출</th>
+			<td class="right" colspan="2"><?=number_format($companyAmount + $personalAmount)?>원</td>
+		</tr>
+		<tr>
+			<th class="left">일자</th>
+			<th class="left">부서</th>
+			<th class="left">성명</th>
+			<th class="left">과목코드</th>
+			<th class="left">과목명</th>
+			<th class="left">세목</th>
+			<th class="right">금액</th>
+		</tr>
+		<?=$RECEIPT_LIST?>
+	</table>
+</div>
+</body>
+</html>

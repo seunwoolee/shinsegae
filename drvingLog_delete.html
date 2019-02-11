@@ -1,0 +1,554 @@
+<? 
+include "inc_html/header.html";
+include "inc/drivingLog.inc.php";
+include "inc/paging.inc.php";
+include "inc/receipt.inc.php";
+include "inc/department.inc.php";
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$pageNum				= $_GET["pageNum"];
+$findkey				= $_GET["findkey"];
+$beginDate				= $_GET["beginDate"];
+$endDate				= $_GET["endDate"];
+$beginDistance			= $_GET["beginDistance"];
+$endDistance			= $_GET["endDistance"];
+$gpsFaked				= $_GET["gpsFaked"];
+$enabled				= $_GET["enabled"];
+$upperDep				= 0;
+$lowerDep				= $_GET["lowerDep"];
+$deleteDep				= 0;
+$approverUpperDep		= $_GET["approverUpperDep"];
+$approverLowerDep		= $_GET["approverLowerDep"];
+if(empty($_GET["upperDep"]) == false)
+{
+	$upperDep				= $_GET["upperDep"];
+}
+if(empty($_GET["deleteDep"]) == false)
+{
+	$deleteDep				= $_GET["deleteDep"];
+}
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+$pg = new Paging(20, 10);
+$department = new Department($db);
+//상위부서 DATA GET
+$department->loadUpperData();
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Code
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// 해당부서의 승인권자를 가져와야함
+if($_SESSION["OMember_admin"] == 'N')
+{
+	$db->que = "select Distinct parentSeq from departmentView where approverEmployeeNumber = '".$_SESSION["OMember_id"]."'";
+	$db->query();
+	$list = $db->getRows();
+	for($i=0;$i<count($list);$i++)
+	{
+		$row = $list[$i];
+		$parentName = $department->getParentName($row["parentSeq"]);
+		$approverUpperDepList .= "<option value='". $row["parentSeq"]. "'" .($approverUpperDep == $row["parentSeq"] ? 'selected="selected"' : ''  ). ">".$parentName. "</option>\n";
+	}
+	$arr = []; // In 비교할때 승인권자 넣을것
+	$db->que = "select seq , name from departmentView where approverEmployeeNumber = '".$_SESSION["OMember_id"]."'";
+	$db->query();
+	while($row = $db->getRow())
+	{
+		array_push($arr,$row["seq"]);
+	}
+	if(count($arr) > 0)
+	{
+		$where .= " AND dl.departmentSeq IN(".implode(',',$arr).")";
+	}
+	else
+	{
+		$where .= " AND dl.departmentSeq  = 'X' ";
+	}
+}
+
+if($approverUpperDep > 0)
+{
+	$db->que = "select seq , name from departmentView where approverEmployeeNumber = '".$_SESSION["OMember_id"]."' AND parentSeq = ".$approverUpperDep;
+	$db->query();
+	while($row = $db->getRow())
+	{
+		$approverlowerDepList .= "<option value='". $row["seq"]. "'" .($approverLowerDep == $row["seq"] ? 'selected="selected"' : ''  ). ">".$row["name"]. "</option>\n";
+	}	
+	$where .= " AND d.parentSeq=". $approverUpperDep;
+}
+
+
+if($approverLowerDep > 0 )
+{
+	$where .= " AND d.seq =". $approverLowerDep;
+}
+	
+if(empty($enabled) == false)
+{
+	$where .= " AND dl.submitState = '". $enabled. "' ";
+}
+
+
+if(empty($findkey) == false)
+{
+	$where .= " AND (dl.name LIKE '%". $findkey. "%' ) ";
+}
+
+if(empty($beginDate) == false)
+{
+	$where .= " AND dl.startDate >= '". $beginDate. "' ";
+}
+
+if(empty($endDate) == false)
+{
+	$where .= " AND dl.startDate <= '". $endDate. "' ";
+}
+
+if(empty($beginDistance) == false)
+{
+	$beginDistance = (int) $beginDistance;
+	$where .= " AND dl.distance >= ". $beginDistance. " ";
+}
+
+if(empty($endDistance) == false)
+{
+	$endDistance = (int) $endDistance;
+	$where .= " AND dl.distance <= ". $endDistance. " ";
+}
+
+if(empty($gpsFaked) == false)
+{
+	$where .= " AND dl.gpsFaked = 1 ";
+}
+
+
+if($upperDep > 0 )
+{
+	$where .= " AND d.parentSeq=". $upperDep." AND d.deleteState = 'N'";
+	//하위부서 DATA GET
+	$department->loadLowerData($upperDep);
+}
+
+if($lowerDep > 0 )
+{
+	$where .= " AND d.seq =". $lowerDep." AND d.deleteState = 'N'";
+}
+
+if($deleteDep > 0 )
+{
+	$where .= " AND d.seq =". $deleteDep. " AND d.deleteState = 'Y'";
+}
+
+$db->que = "SELECT COUNT(dl.seq) FROM drivingLog AS dl ";
+$db->que .= " LEFT JOIN department as d ON (dl.departmentSeq = d.seq) WHERE dl.deleteState = 'N' ".$where;
+$db->query();
+$totalCount = $db->getOne();
+$pg->set($totalCount, $pageNum);
+
+$db->que = " select  dl.seq , dl.startDate, dl.submitState , dl.departmentName , dl.name , dl.employeeNumber  ";
+$db->que .= " , d.code , p.purposeName , dl.startAddress ,dl.stopAddress , dl.costName , dl.purposeLocation , dl.distance ";
+$db->que .= " , sum(r.amount) as amount , count(r.amount) as count , dl.submitdate , dl.approveDate";
+$db->que .= " , dv.approverName , dv.approverEmployeeNumber , dv.approverDepartmentName , dv.approverDepartmentCodeCode ";
+$db->que .= " from (select dl.seq from drivingLog as dl LEFT JOIN department as d ON (dl.departmentSeq = d.seq)  WHERE submitState <> 'X' and dl.deleteState = 'N'  ". $where ." ORDER BY  startDate DESC, seq DESC LIMIT  ". $pg->startRow. ", ". $pg->fetchSize.") as q ";
+$db->que .= "  JOIN drivingLog as dl ON (q.seq = dl.seq) ";
+$db->que .= " LEFT JOIN department as d ON (dl.departmentSeq = d.seq) ";
+$db->que .= " LEFT JOIN purpose AS p ON (dl.purpose=p.purposeType) ";
+$db->que .= " LEFT JOIN receipt AS r ON (dl.seq=r.drivingLog_seq)  ";
+$db->que .= " LEFT JOIN departmentView2 AS dv ON (dl.departmentSeq=dv.seq) ";
+$db->que .= " group by dl.seq ORDER BY NULL ";
+$db->query();
+var_dump($db->que);
+$listRows = $db->getRows();
+
+$hour24 = 60 * 60 * 24;
+for($i=0;$i<count($listRows);$i++)
+{
+	$row = $listRows[$i];
+	
+	$submitdate = strToTime($row["submitdate"]);
+	
+	if($row["approveDate"] == null)
+	{
+		$approveDate = "";
+	}
+	else
+	{
+		$approveDate = strToTime($row["approveDate"]);
+		$approveDate = date("Y.m.d", $submitdate);
+	}
+		
+	if($row["amount"] == null)
+	{
+		$amount = "";
+		
+	}
+	else
+	{
+		$amount =  number_format($row["amount"]). "원<br />" .$row["count"]."건";
+	}
+	
+	$startDate = strToTime($row["startDate"]);
+	$startTime = strToTime($row["startTime"]);
+	$stopTime = strToTime($row["stopTime"]);
+
+	if($row["gpsFaked"] == 1) 
+	{
+		$mapBtnColor = "btn-new-find";
+		$title = "GPS 모의 위치 어플 사용 추정";
+	}
+	else
+	{
+		$mapBtnColor = "btn-new-ok";
+		$title = "";
+	}
+
+	if($row["startAddress"] == "") {
+		$row["startAddress"] = "<span style='color:#e74c3c'>출발지 정보 없음</span>";
+	}
+
+	$drivingTime = $stopTime - $startTime;
+	if($drivingTime > 0)
+	{
+		$hour = $drivingTime / 3600;
+		$minute = ($drivingTime % 3600) / 60;
+		$drivingTimeText = sprintf('%02d', $hour). ":". sprintf('%02d', $minute);
+
+		if($drivingTime >= $hour24)
+		{
+			$drivingTimeText = "<font color=red>". $drivingTimeText. "</font>";
+		}
+	}
+	else
+	{
+		$drivingTimeText = "00:00";
+	}
+
+	$enabledText = Receipt::getStateText($row["submitState"]);
+		
+	if($row["submitState"] == "Y")
+	{
+		$enabledText = "<span class='label label-info'>". $enabledText. "</span>";
+	} 					
+	else if($row["submitState"] == "N")
+	{
+		$enabledText = "<span class='label label-danger'>". $enabledText. "</span>";
+	}
+	
+	//영수증 체크
+	$db->que = " select count(seq) from receipt Where drivingLog_seq = ".$row["seq"];
+	$db->query();
+	$ReciptCount = $db->getOne();
+	
+	if($ReciptCount > 0)
+	{
+		$ReceiptRow = "<td align='center'><a href='javascript:popupReceiptImage(". $row["seq"]. ");' class='thumb btn btn-sm btn-new-find'><i class='fa fa-file-image-o'></i></a></td>";
+	}
+	else
+	{
+		$ReceiptRow = "<td align='center'></td>";
+	}
+	
+	$LIST .= "<tr height='30'>
+					<td align='center'><input type='checkbox' name='check[]' class='list-checkbox' value='". $row["seq"]. "' /></td>
+					<td align='center' style='cursor:pointer;' onclick='popupWrite(". $row["seq"]. ")'>".$enabledText."</td>
+					<td align='center' style='cursor:pointer;' onclick='popupWrite(". $row["seq"]. ")'>". $row["departmentName"]. "<br />". $row["departmentCode"]."</td>
+					<td align='center' style='cursor:pointer;' onclick='popupWrite(". $row["seq"]. ")'>". $row["name"]. "<br />". $row["employeeNumber"]. "</td>
+					<td align='center' style='cursor:pointer;' onclick='popupWrite(". $row["seq"]. ")'>". $row["code"]. "</td>
+					<td align='center' style='cursor:pointer;' onclick='popupWrite(". $row["seq"]. ")'>". $row["purposeName"]. "</td>
+					<td align='center' style='cursor:pointer;' onclick='popupWrite(". $row["seq"]. ")'>". $row["startAddress"]. "</td>
+					<td align='center' style='cursor:pointer;' onclick='popupWrite(". $row["seq"]. ")'>". $row["stopAddress"]. "</td>
+					<td align='center' style='cursor:pointer;' onclick='popupWrite(". $row["seq"]. ")'>". $row["costName"]. "</td>
+					<td align='center' style='cursor:pointer;' onclick='popupWrite(". $row["seq"]. ")'>". $row["purposeLocation"]. "</td>
+					<td align='center' style='cursor:pointer' onclick='popupWrite(". $row["seq"]. ")'>". number_format($row["distance"]). " km</td>
+					<td align='center' style='cursor:pointer' onclick='popupWrite(". $row["seq"]. ")'>". $amount."</td>
+					<td align='center' style='cursor:pointer' onclick='popupWrite(". $row["seq"]. ")'><b>". date("Y.m.d", $submitdate) . "</b></td>
+					<td align='center' style='cursor:pointer' onclick='popupWrite(". $row["seq"]. ")'>". $approveDate ."</td>
+					<td align='center' style='cursor:pointer' onclick='popupWrite(". $row["seq"]. ")'>". $row["approverName"]. "<br />". $row["approverEmployeeNumber"]. "</td>
+					<td align='center' style='cursor:pointer' onclick='popupWrite(". $row["seq"]. ")'>". $row["approverDepartmentName"]. "<br />". $row["approverDepartmentCodeCode"]. "</td>"
+					.$ReceiptRow;
+
+	$LIST .= "<td align='center'><a href='map.html?seq=". $row["seq"]. "' target='_blank' class='btn btn-sm ". $mapBtnColor. "' title='". $title. "'><i class='fa fa-map'></i> Map</a></td>";
+	$LIST .= "</tr>";
+}
+//<td align='center'><a href='javascript:popupReceiptImage(". $row["seq"]. ");' class='thumb btn btn-sm btn-new-find'><i class='fa fa-file-image-o'></i></a></td>"
+
+if(empty($LIST))
+{
+	$LIST = "	<tr height='30'>
+					<td class='center' colspan='18' style='height:80px;'>데이터가 없습니다.</td>
+				</tr>";
+}
+?>
+
+<script>
+
+function excelDownPerson(){
+	popup('excelDownPerson.html', 650, 600)
+}
+
+function excelDownAll(){
+	popup('excelDownAll.html', 650, 600)
+}
+
+
+function popupWrite(seq)
+{
+	popup("drivingLogWrite.html?seq=" + seq, 650, 700);
+}
+
+function popupReceiptImage(seq){
+	popup("win_galley.php?seq=" + seq, 650, 600);
+}
+
+
+function listPaging(pageNum)
+{
+	search(pageNum);
+}
+
+
+function search(pageNum)
+{
+	if(typeof pageNum === "undefined")
+	{
+		pageNum = 1;
+	}
+
+	var key 			 = encodeURIComponent($("#findkey").val());
+	var beginDate 		 = $("#beginDate").val();
+	var endDate 		 = $("#endDate").val();
+	var beginDistance 	 = $("#beginDistance").val();
+	var endDistance 	 = $("#endDistance").val();
+	var gpsFaked 		 = "";
+	var enabled 		 = $("#enabled").val();
+	var upperDep 		 = $("#upperDep").val();
+	var lowerDep 		 = $("#lowerDep").val();
+	var deleteDep 		 = $("#deleteDep").val();
+	/*
+	var previousDep		 = <?=$upperDep?>;
+	var previousdeleteDep= <?=$deleteDep?>;
+	
+	
+	if(previousdeleteDep > 0)
+	{
+		alert(previousdeleteDep);
+	}
+
+	if(previousDep == upperDep)
+	{
+		//alert(previousDep);
+		//upperDep = 0;
+	}
+	else if(previousdeleteDep == deleteDep)
+	{
+		//deleteDep = 0;
+	}
+	*/
+	
+	var approverUpperDep = $("#approverUpperDep").val();
+	var approverLowerDep = $("#approverLowerDep").val();
+	if($('input:checkbox[id="gpsFaked"]').is(":checked") == true) {
+		gpsFaked = "Y";
+	}
+
+	window.location.href = "drivingLogs.html?findkey=" + key + "&gpsFaked=" + gpsFaked + "&beginDistance=" + beginDistance + "&endDistance=" + endDistance + "&pageNum=" + pageNum + "&beginDate=" + beginDate + "&endDate=" + endDate + "&enabled=" + enabled + "&upperDep=" + upperDep + "&lowerDep=" + lowerDep + "&approverUpperDep=" + approverUpperDep + "&approverLowerDep=" + approverLowerDep + "&deleteDep=" + deleteDep;
+}
+
+function listFormSubmit (mode) {
+	if($('.list-checkbox:checkbox:checked').length<1) {
+		alert("승인할 운행 내역을 선택해주세요.");
+		return false;
+	}
+	
+	$("#mode").val(mode);
+	listForm.submit();
+}
+
+
+function popupTotalBlock()
+{
+	if($('.list-checkbox:checkbox:checked').length<1) {
+		alert("반려할 운행 내역을 선택해주세요.");
+		return false;
+	}
+	
+	var checkedValue = [];
+	$("input:checkbox[type='checkbox']:checked").each(function()
+	{
+		if($(this).attr("id") != "check-all") {
+			checkedValue.push($(this).val());
+		}
+	});
+	//var checkedValue = $('.list-checkbox:checked').val();
+	popup("dirivingBlockWrite.html?checkValue=" + checkedValue, 650, 600);
+}
+
+
+$(document).ready(function() {
+	var sum = 0;
+	var count = 0;
+	$("#table-header th").each(function() {
+		sum += parseInt($(this).attr("width"), 10);
+		count++;
+	});
+
+	$("#table-header th").each(function() {
+		var width = parseInt($(this).attr("width"), 10);
+		var widthRatio = width / sum * 100;
+		$(this).attr("width", widthRatio+"%");
+	});
+
+	$("#emptyRow").attr("colspan", count);
+});
+</script>
+
+
+<div class="row">
+	<div class="col-md-12">
+		<div class="card">
+			<div class="cardTitle">
+				<span class="titCard">
+					차량 운행 내역
+					<!-- <a href="javascript:drivingChart();" class="btn btn-sm btn-new-ok pull-right">통계</a> -->
+				</span>
+			</div>
+			<div class="cardSearch form-inline" style="background:#fff;">
+				<select id="enabled" name="enabled" class="form-control" onchange="search()">
+					<option value="" >전체 운행 기록</option>
+					<option value="N" <?=LIB::isSelected("N", $enabled)?>><?=Receipt::getStateText("N")?></option>
+					<option value="Y" <?=LIB::isSelected("Y", $enabled)?>><?=Receipt::getStateText("Y")?></option>
+				</select>
+				
+				<? if($_SESSION["OMember_admin"] == 'Y'){?> <!-- 관리자일때 부서-->
+				<select name = "upperDep" id="upperDep" class="form-control" onchange="search()">
+					<option value=0>전체 상위 부서</option>
+					<?=$department->getTreeSelectBoxOptions($upperDep)?>
+				</select>
+				<select id="lowerDep" name="lowerDep" class="form-control" onchange="search()">
+					<option value=0>소속 하위 부서</option>
+					<?=$department->getLowerTreeSelectBoxOptions($lowerDep)?>
+				</select>
+				<?} else {?>								<!-- 승인권자의 부서-->
+				<select name = "approverUpperDep" id="approverUpperDep" class="form-control" onchange="search()">
+					<option value=0>전체 상위 부서</option>
+					<?=$approverUpperDepList?>
+				</select>
+				<select id="approverLowerDep" name="approverLowerDep" class="form-control" onchange="search()">
+					<option value=0>소속 하위 부서</option>
+					<?=$approverlowerDepList?>
+				</select>				
+				<?}?>
+				
+				<input type="text" name="findkey" id="findkey" class="form-control" placeholder="성명, 차량번호 입력" onkeypress="if(event.keyCode == 13) search()" value="<?=$findkey?>" />
+				<input type="button" value="검색" onclick="search()" class="btn btn-sm btn-new-find" />
+				<? if($_SESSION["OMember_admin"] == 'Y'){?> <!-- 관리자일때 부서-->
+				<select name="deleteDep" id="deleteDep" class="form-control pull-right" onchange="search()"  <? if($upperDep > 0) {?> disabled="disabled" <?}?>>
+					<option>삭제된 부서</option>
+					<?=$department->getDeletedDepSelectBoxOptions($deleteDep)?>
+				</select>
+				<?}?>
+				<table class="tbl_none mt20">
+					<colgroup>
+						<col width="150"></col>
+						<col width="*"></col>
+						<col width="150"></col>
+						<col width="*"></col>
+					</colgroup>
+					<!-- 검색 데이터 -->
+					<tr>
+						<th>주행거리</th>
+						<td>
+							<input type="text" name="beginDistance" id="beginDistance" class="form-control" value="<?=$beginDistance?>" onkeypress="if(event.keyCode == 13) search()"  /> KM 이상 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+							<input type="text" name="endDistance" id="endDistance" class="form-control" value="<?=$endDistance?>" onkeypress="if(event.keyCode == 13) search()"  /> KM 이하
+						</td>
+						<th>기간검색</th>
+						<td>
+							<input type="text" name="beginDate" id="beginDate" class="form-control" value="<?=$beginDate?>" readonly /> ~
+							<input type="text" name="endDate" id="endDate" class="form-control" value="<?=$endDate?>" readonly />
+						</td>
+					</tr>
+				</table>
+			</div>
+			<div class="cardCont">
+				<form class="list-box" name="listForm" action="post/drivingListPost.php" method="post">
+				<input type="hidden" name="mode" id="mode" value="change" />	
+					<div class="btn-group pull-left">
+						<!--<a href="javascript:;" class="btn btn-sm btn-new-ok">선택승인</a>-->
+						<input type="button" value="선택 승인" onclick="listFormSubmit('approve')" class="btn btn-sm btn-new-ok" />
+						<a href="javascript:popupTotalBlock();" class="btn btn-sm btn-new-careful">선택반려</a>
+					</div>
+					<div class="mb10 pull-right">
+						<!--<input type="button" value="운행일지 다운로드" onclick="excelDownPerson()" class="btn btn-sm btn-new-ok" />-->
+						<input type="button" value="운행기록 전체 다운로드" onclick="excelDownAll()" class="btn btn-sm btn-new-ok" />
+					</div>
+					<div style="clear:both;"></div>
+					<div class="table-responsive">
+						<table class="tblBasic" style="min-width:1000px;">
+							<colgroup>
+								<col width="" />
+								<col width="" />
+								<col width="" />
+								<col width="" />
+								<col width="" />
+								<col width="" />
+								<col width="" />
+								<col width="" />
+							</colgroup>
+							<thead>
+							<tr height="30">
+								<th class="text-center"><input type="checkbox" name="check-all" id="check-all" value="Y" onchange="checkAll(this, 'list-checkbox')"></th>
+								<th class="text-center">상태</th>
+								<th class="text-center">소속부서</th>
+								<th class="text-center">성명</th>
+								<th class="text-center">판관</th>
+								<th class="text-center">운행목적</th>
+								<th class="text-center">출발지</th>
+								<th class="text-center">도착지</th>
+								<th class="text-center">비용성격</th>
+								<th class="text-center">목적지</th>
+								<th class="text-center">운행거리</th>
+								<th class="text-center">지출금액</th>
+								<th class="text-center">신청날짜</th>
+								<th class="text-center">승인날짜</th>
+								<th class="text-center">승인권자</th>
+								<th class="text-center">소속부서</th>
+								<th class="text-center">영수증</th>
+								<th class="text-center">이동경로</th>
+							</tr>
+							</thead>
+							<tbody class="bgAdd">
+							<?=$LIST?>
+							</tbody>
+						</table>
+					</div>
+					<ul class="pagination pull-right">
+						<?=$pg->getPages()?>
+					</ul>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<script>
+$(window).load(function(){
+	$("#beginDate, #endDate").datepicker({
+		dateFormat: 'yy-mm-dd',
+		prevText: '이전 달',
+		nextText: '다음 달',
+		monthNames: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+		monthNamesShort: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+		dayNames: ['일','월','화','수','목','금','토'],
+		dayNamesShort: ['일','월','화','수','목','금','토'],
+		dayNamesMin: ['일','월','화','수','목','금','토'],
+		yearSuffix: ' / ',
+		changeMonth : true,
+		changeYear : true
+	});
+});
+</script>
+<? include "inc_html/footer.html"; ?>

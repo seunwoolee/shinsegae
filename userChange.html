@@ -1,0 +1,155 @@
+<?
+include "inc_html/popupHeader.html";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$seq	 	= $_GET["seq"];
+$depCode 	= $_GET["depCode"];
+$newDep  	= $_GET["newDep"];
+$checkValue = $_GET["checkValue"];
+
+if(empty($checkValue) == false)
+{
+	$check = explode (",", $checkValue); 
+}
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// 
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+$db->que = "SELECT * FROM department WHERE departmentCode=".$depCode;
+$db->query();
+$row = $db->getRow();
+$fullName = $row["fullName"]."(".$row["departmentCode"].")";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// 승인권자 검색
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+if($seq > 0)
+{
+	$where .= " AND seq =".$seq;
+	$db->que = " SELECT * FROM department WHERE 1=1 ".$where;
+	$db->query();
+	$row = $db->getRow();
+	$newDep = $row["fullName"]."(".$row["departmentCode"].")";
+}
+
+
+if(empty($newDep) == false && empty($seq))
+{
+	$where .= " AND name LIKE '%". $newDep. "%' ";
+	$db->que = " SELECT * FROM department Where depth = 1 AND deleteState = 'N' ".$where ;
+	$db->query();
+	while($row = $db->getRow())
+	{
+		$LIST .= "<option onclick=\"searchOne('". $row["seq"]. "',".$depCode." )\" >".$row["fullName"]."(".$row["departmentCode"].")</option> ";
+	}
+	if(empty($LIST))
+	{ 
+		$LIST = "<option>※ 검색된 항목이 없습니다.</option> ";
+	}
+}
+
+
+?>
+<script>
+var checkValue = <?=json_encode($check);?>;	
+
+function save(depCode) 
+{
+	var New 	  = $("#newDep").val();
+	var firstNew	  = New.indexOf("(") + 1;
+	var lastNew  	  = New.indexOf(")");
+	var newDep 	    = New.substring(firstNew,lastNew);
+	$("#mode").val("departmentModify");
+	$("#depCode").val(depCode);
+	$("#newDepHidden").val(newDep);	
+	$("#checkValue").val(checkValue);
+	submitForm.submit();
+}
+
+function searchDepartment(depCode)
+{
+	if($("#newDep").val().length < 1) {
+		alert("부서명을 입력해주세요");
+		return;
+	};
+	var newDep = $("#newDep").val();
+	window.location.href = "userChange.html?depCode="+ depCode +"&newDep=" + newDep + "&checkValue=" + checkValue;
+}
+
+function searchOne(seq, depCode)
+{	
+	//alert(seq+","+depCode);
+	//var newDep = $("#newDep").val();
+	window.location.href = "userChange.html?depCode="+ depCode + "&seq=" + seq + "&checkValue=" + checkValue;
+}
+</script>
+<div class='popup_title'>소속부서 변경</div>
+
+<div class="popup_content">
+	<form name="submitForm" method="post" action="post/userListPost.php">
+	<input type="hidden" name="mode"   id="mode" 	value="departmentModify" />
+	<input type="hidden" name="depCode"id="depCode" value="" />
+	<input type="hidden" name="checkValue"  id="checkValue"   value="" />	
+	<input type="hidden" name="newDepHidden"  id="newDepHidden"   value="" />
+		<div class="col-md-12">
+			<div class="card">
+				<div class="cardTitle">
+					<span class="titCard">소속부서 일괄 변경</span>
+				</div>
+				<div class="cardCont">
+					<table class="tbl_none">
+						<colgroup>
+							<col width="160" />
+							<col width="" />
+						</colgroup>
+						<tr>
+							<th>기존 부서</th>
+							<td>
+								<input type="text" name="previousDep" id="previousDep" class="form-control" value="<?=$fullName?>" readOnly />
+							</td>
+						</tr>
+						<tr>
+							<th>변경할 부서 검색</th>
+							<td class="newDep">
+								<div class="input-group">
+									<input type="text" name="newDep" id="newDep" class="form-control <? if($seq>0) echo 'thereIs' ?>" placeholder="부서명을 입력하세요." value="<?=$newDep?>" onkeypress="if(event.keyCode == 13) searchDepartment(<?=$depCode?>)" />
+
+									<span class="input-group-btn">
+										<button class="btn btn-new-ok" type="button" onclick="searchDepartment(<?=$depCode?>)"><i class="fa fa-search mr5"></i>검색</button>
+									</span>
+								</div>
+								<div class="mt10 searchList">
+									<select multiple class="form-control">
+										<?=$LIST?>
+									</select>
+								</div>
+							</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+		</div>
+	</form>
+	<script>
+	/*
+	$(window).load(function(){
+		if($("#newDep").attr("readOnly")){
+			$('.depSearch').attr('disabled', true);
+		}
+	});
+	*/
+	$(document).ready(function(){
+		$(".newDep").chgElm();
+	});
+	</script>
+
+	<div class="center mt20">
+		<input type="button" value="저장" onclick="save(<?=$depCode?>)" class="btn btn-lg btn-new-ok" />
+		<input type="button" value="닫기" onclick="window.close()" class="btn btn-lg btn-new-cancle" />
+	</div>
+</div>
+
+<? include "inc_html/popupFooter.html"; ?>

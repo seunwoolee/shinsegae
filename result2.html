@@ -1,0 +1,134 @@
+<?
+include "inc/department.inc.php";
+include "inc/mysql.inc.php";
+include "inc/config.php";
+include "inc/lib.inc.php";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$beginDate				= $_GET["beginDate"];
+$endDate				= $_GET["endDate"];
+$upperDep				= $_GET["upperDep"];
+$lowerDep				= $_GET["lowerDep"];
+
+$db = new Mysql();
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Code
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+
+if($upperDep > 0 )
+{
+	$where .= " AND parentSeq =". $upperDep;
+}
+
+if($lowerDep > 0 )
+{
+	$where .= " AND departmentSeq =". $lowerDep;
+}
+
+
+if(empty($beginDate) == false && empty($endDate) == false)
+{
+	$db->que  = " SELECT * from (";
+	$db->que .= " SELECT op.costCode , d.departmentCode , d.code , op.jeogyo , d.parentSeq , departmentSeq, departmentName, '' as employeeNumber , '' as name, sum(totalCost) as totalCost , 'C'as gubun from oilCostPaid as op ";
+	$db->que .= " LEFT JOIN department as d on op.departmentSeq = d.seq WHERE op.ymd BETWEEN '".$beginDate. "' AND '".$endDate."'";
+	$db->que .= " group by op.departmentSeq  , costCode UNION ALL  ";
+	$db->que .= " SELECT op.costCode , d.departmentCode , d.code , op.jeogyo , d.parentSeq , departmentSeq, departmentName, op.employeeNumber , op.name , sum(totalCost) as totalCost , 'D'as gubun from oilCostPaid as op ";
+	$db->que .= " LEFT JOIN department as d on op.departmentSeq = d.seq WHERE op.ymd BETWEEN '".$beginDate. "' AND '".$endDate."'";
+	$db->que .= " group by op.departmentSeq , op.employeeNumber) as q WHERE (1) ".$where." order by q.departmentSeq , gubun";
+
+	$db->query();
+	$list = $db->getRows();
+}
+
+for($i=0;$i<count($list);$i++)
+{ // 귀속부서 , 귀속사업장일때 if 써야됨 , 차변 , 대변일때도 if 써야됨 근데 List도 써야함 
+	$row = $list[$i];
+	if($row["code"] == "제조")
+	{
+		if($row["gubun"] == "C")
+		{
+			$LIST .= "<tr height='30'>
+						<td align='center'>". $row["costCode"]. "</td>
+						<td align='center'> - </td>
+						<td align='center'>". $row["departmentCode"]. "</td>
+						<td align='center'>". $row["jeogyo"]. "</td>
+						<td align='center'>". number_format($row["totalCost"]). "원</td>
+						<td align='center'> - </td>					
+						<td align='center'> - </td>					
+						<td align='center'>  </td>					
+					</tr>";
+		}
+		else if($row["gubun"] == "D")
+		{
+			$LIST .= "<tr height='30'>
+						<td align='center'> - </td>
+						<td align='center'> - </td>
+						<td align='center'>". $row["departmentCode"]. "</td>
+						<td align='center'>". $row["jeogyo"]. "</td>
+						<td align='center'> - </td>
+						<td align='center'>". number_format($row["totalCost"]). "원</td>
+						<td align='center'>". $row["employeeNumber"]. "</td>
+						<td align='center'> - </td>
+					</tr>";
+		}
+	}
+	else if($row["code"] == "판관")
+	{
+		if($row["gubun"] == "C")
+		{
+			$LIST .= "<tr height='30'>
+						<td align='center'>". $row["costCode"]. "</td>
+						<td align='center'>". $row["departmentCode"]. "</td>
+						<td align='center'> - </td>
+						<td align='center'>". $row["jeogyo"]. "</td>
+						<td align='center'>". number_format($row["totalCost"]). "원</td>
+						<td align='center'> - </td>					
+						<td align='center'> - </td>	
+						<td align='center'>  </td>							
+					</tr>";
+		}
+		else if($row["gubun"] == "D")
+		{
+			$LIST .= "<tr height='30'>
+						<td align='center'> - </td>
+						<td align='center'>". $row["departmentCode"]. "</td>
+						<td align='center'> - </td>
+						<td align='center'>". $row["jeogyo"]. "</td>
+						<td align='center'> - </td>
+						<td align='center'>". number_format($row["totalCost"]). "원</td>
+						<td align='center'>". $row["employeeNumber"]. "</td>
+						<td align='center'> - </td>
+					</tr>";
+		}	
+	}	
+}
+?>
+<table class="tblBasic mt20" style="min-width:1000px;">
+	<colgroup>
+		<col width="" />
+		<col width="" />
+		<col width="" />
+		<col width="" />
+		<col width="" />
+		<col width="" />
+		<col width="" />
+		<col width="" />
+	</colgroup>
+	<thead>
+	<tr height="30">
+		<th class="text-center">계정코드</th>
+		<th class="text-center">귀속부서</th>
+		<th class="text-center">귀속사업장</th>
+		<th class="text-center">적요</th>
+		<th class="text-center">차변</th>
+		<th class="text-center">대변</th>
+		<th class="text-center">사원번호</th>
+		<th class="text-center">지불예정일</th>
+	</tr>
+	</thead>
+	<tbody class="bgAdd">
+	<?=$LIST?>
+	</tbody>
+</table>

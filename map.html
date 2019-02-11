@@ -1,0 +1,260 @@
+<?
+include "inc_html/popupHeader.html";
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Variable
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$seq						= $_GET["seq"];
+//$companySeq			= $COMPANY_SEQ;
+
+
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+// Class
+//- - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - - + - -
+$db = new Mysql();
+
+
+if($seq > 0)
+{
+	$db->que = "SELECT d.seq, d.saveMapPoint, UNCOMPRESS(m.locations) AS mapPoints FROM drivingLog AS d LEFT JOIN mapPoint AS m ON d.seq=m.drivingLogSeq WHERE d.seq=". $seq;
+	$db->query();
+	$row = $db->getRow();
+
+	
+	if($row["saveMapPoint"] == 1)
+	{
+		if(empty($row["mapPoints"])){
+			$mapPoints = "[]";
+		} 
+		else
+		{
+			$mapPoints = $row["mapPoints"];
+		}
+	}
+	else
+	{
+		$mapPoints = "[]";
+	}
+
+	//if($companySeq != $row["companySeq"])
+	//{
+	//	exit;
+	//}
+}
+else
+{
+	exit;
+}
+?>
+
+
+<style>
+#map {
+	height: 100%;
+}
+</style>
+<div id="map"></div>
+
+
+
+<script>
+var STANDARD_ZOOM_DIST = 5022000;
+var map;
+var markers = [];
+var flightPath = null;
+var mapPoints = <?=$mapPoints?>;
+var markerDistance = 0;
+
+function getMarkerDistance(zoom) {
+	var distance = STANDARD_ZOOM_DIST;
+	for(var i=0; i<=zoom; i++) {
+		distance = distance / 2;
+	}
+
+	distance = distance * 2;
+	return distance;
+}
+
+
+function getDistance(beginLocation, endLocation) {
+	var lat1 = parseFloat(beginLocation["latitude"]);
+	var lon1 = parseFloat(beginLocation["longitude"]);
+	var lat2 = parseFloat(endLocation["latitude"]);
+	var lon2 = parseFloat(endLocation["longitude"]);
+
+	var radlat1 = Math.PI * lat1/180;
+	var radlat2 = Math.PI * lat2/180;
+	var theta = lon1-lon2;
+	var radtheta = Math.PI * theta/180;
+	var dist = Math.sin(radlat1) * Math.sin(radlat2) + Math.cos(radlat1) * Math.cos(radlat2) * Math.cos(radtheta);
+	dist = Math.acos(dist);
+	dist = dist * 180/Math.PI;
+	dist = dist * 60 * 1.1515;
+	dist = dist * 1.609344;		// 단위 mile 에서 km 변환.
+	dist = dist * 1000;			// 단위  km 에서 m 로 변환
+	return dist;
+}
+
+
+function initMap() {
+	if(mapPoints != null && mapPoints.length > 0) {
+		
+		var startPoint_lat = parseFloat(mapPoints[0]["latitude"]);
+		var startPoint_lng = parseFloat(mapPoints[0]["longitude"]);
+
+		map = new google.maps.Map(document.getElementById('map'), {
+			center: {lat: startPoint_lat, lng: startPoint_lng},
+			zoom: 14
+		});
+
+		map.addListener('zoom_changed', function() {
+			addMarkers();
+		});
+		
+		
+		addMarkers();
+	} else {
+		
+		map = new google.maps.Map(document.getElementById('map'), {
+			center: {lat: 36.478501798, lng: 127.895865},
+			zoom: 8
+		});
+	}
+}
+
+var prevLocation = null;
+function addMarkers() {
+	clearMarkers();
+	var enableMarker = $("#marker").hasClass("on");
+	var enableLine = $("#line").hasClass("on");
+	
+
+	var markerDistance = getMarkerDistance(map.getZoom());
+	var length = mapPoints.length;
+	var flightPlanCoordinates = [];
+
+	for(var i=0; i<length; i++)
+	{
+		
+		var date = new Date(parseInt(mapPoints[i]["time"], 10));
+
+		if(prevLocation == null) {
+			addMarker(i+1, "images/icon/icon_map_start.png", {lat:parseFloat(mapPoints[i]["latitude"]), lng:parseFloat(mapPoints[i]["longitude"])},  date.format("yyyy-MM-dd HH:mm:ss"));
+			prevLocation = mapPoints[i];
+		} else if(i == (length-1)) {
+			addMarker(i+1, "images/icon/icon_map_stop.png", {lat:parseFloat(mapPoints[i]["latitude"]), lng:parseFloat(mapPoints[i]["longitude"])},  date.format("yyyy-MM-dd HH:mm:ss"));
+			prevLocation = mapPoints[i];
+		} else {
+			if(enableMarker == true) {
+				var distance = getDistance(prevLocation, mapPoints[i]);
+
+				if(distance >= markerDistance) {
+					addMarker(i+1, "", {lat:parseFloat(mapPoints[i]["latitude"]), lng:parseFloat(mapPoints[i]["longitude"])},  date.format("yyyy-MM-dd HH:mm:ss"));
+					prevLocation = mapPoints[i];
+				}
+			}
+		}
+
+		
+		if(enableLine == true) {
+			flightPlanCoordinates.push({lat:parseFloat(mapPoints[i]["latitude"]), lng:parseFloat(mapPoints[i]["longitude"])});
+		}
+		//addMarkerWithTimeout({lat:parseFloat(mapPoints[i]["latitude"]), lng:parseFloat(mapPoints[i]["longitude"])}, i * 50);
+	}
+
+	if(flightPath != null) {
+		flightPath.setMap(null);
+	}
+
+	if(enableLine == true) {
+		flightPath = new google.maps.Polyline({
+			path: flightPlanCoordinates,
+			geodesic: true,
+			strokeColor: '#FF0000',
+			strokeOpacity: 1.0,
+			strokeWeight: 3
+		});
+
+		flightPath.setMap(map);
+	}
+}
+
+
+function addMarker(no, icon, location, title) {
+	if(icon != "") {
+		var marker = new google.maps.Marker({
+			position : location,
+			map : map,
+			icon : icon
+		});
+	} else {
+		var marker = new google.maps.Marker({
+			position: location,
+			map: map
+		});
+	}
+
+	var infowindow = new google.maps.InfoWindow({
+		content: '<div style="font-family:돋움">[순번:' + no + "] " + title + '</div>',
+		origin: new google.maps.Point(20, 20),
+		anchor: new google.maps.Point(20, 20)
+	});
+
+	marker.addListener('mouseover', function() {
+		infowindow.open(map, marker);
+	});
+
+	marker.addListener('mouseout', function() {
+		infowindow.close();
+	});
+
+  markers.push(marker);
+}
+
+
+
+function addMarkerWithTimeout(position, timeout) {
+	window.setTimeout(function() {
+		markers.push(new google.maps.Marker({
+			position: position,
+			map: map,
+			animation: google.maps.Animation.DROP
+		}));
+	}, timeout);
+}
+
+
+
+function clearMarkers() {
+	prevLocation = null;
+	for (var i = 0; i < markers.length; i++) {
+		markers[i].setMap(null);
+	}
+
+	markers = [];
+}
+
+$(document).ready(function(){
+	$(".button").click(function(){
+		if($(this).hasClass("on")) {
+			$(this).removeClass("on");
+		} else {
+			$(this).addClass("on");
+		}
+
+		prevLocation = null;
+		addMarkers();
+	});
+});
+
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC8fMgzB0FIagAZaahQgiQmlILkS7Ooz6g&callback=initMap&region=KR" async defer></script>
+<style>
+.button {width:80px; height:30px; background-color:#f9f9f9; border:1px solid #cfcfcf; position:absolute; left:10px; top:50px;}
+.on {background-color:#646464; color:#FFF;}
+</style>
+
+<input type="button" id="marker" value="지점표시" class="button on">
+<input type="button" id="line" value="라인표시" class="button on" style="left:95px">
+
+<? include "inc_html/popupFooter.html"; ?>
